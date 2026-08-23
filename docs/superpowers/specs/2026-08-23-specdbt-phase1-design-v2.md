@@ -163,40 +163,75 @@ torn down through a **generated macro file**, invoked via
    chain is correct per-warehouse without specdbt reimplementing SQL escaping
    itself. Round-trip verified in the spike for embedded single quotes,
    double quotes, and backslashes.
-2. **When → real macro call.** Same generated-macro-file mechanism: the
-   macro-under-test's call is real, verbatim Jinja — no specdbt-invented call
-   syntax (see §6) — wrapped in `{% do run_query("create table ... as (" ~
-   <macro call> ~ ")") %}` inside the generated macro, invoked the same way.
-   Any `ref()`/`source()` inside that literal referring to a fixture name is
-   textually substituted for the ephemeral fixture's real relation *before*
-   the macro file is written (specdbt's own preprocessing, not dbt's `ref`
-   resolution — a fixture isn't a real project node).
-3. **Result readback.** The result table is read back via `dbt show --inline
-   --output json`, then `result.result.results[0].agate_table` — an `agate`
-   table with `.column_names` and `.rows`, converted directly to a Polars
-   DataFrame with `pl.DataFrame([dict(zip(agate_tbl.column_names, row)) for
-   row in agate_tbl.rows])`.
+2. **When → real query, read directly, no result table.** The `When` step's
+   text is a *complete* query, real verbatim Jinja/SQL — no specdbt-invented
+   call syntax (see §6) — not just a macro call expression. A second spike
+   (below) found that wrapping a macro call in a `CREATE TABLE ... AS`
+   executed via `run_query()` silently fails to persist for at least one real
+   macro (`dbt_utils.star()`), while the identical call as a plain `SELECT`
+   run through `dbt show --inline` works correctly every time. There is also
+   no single wrapping shape that would work generically: `generate_surrogate_key()`
+   expands to a scalar expression (needs `select {{ call }} as x from t`),
+   `star()` expands to a column list (needs `select {{ call }} from t`, no
+   `as`), and other macros may expand to neither shape. Rather than guess a
+   macro's output shape, specdbt doesn't wrap at all — the scenario author
+   writes the full query, and specdbt only does one thing to it before
+   execution: textually substitutes any `ref()`/`source()` referring to a
+   fixture name for the ephemeral fixture's real relation (specdbt's own
+   preprocessing, not dbt's `ref` resolution — a fixture isn't a real project
+   node).
+3. **Result readback.** The substituted query is run directly via `dbt show
+   --inline --output json`, then `result.result.results[0].agate_table` — an
+   `agate` table with `.column_names` and `.rows`, converted to
+   `list[dict]` with `[dict(zip(agate_tbl.column_names, row, strict=True))
+   for row in agate_tbl.rows]` for `ExecutionResult`.
 4. **Then → Polars diff** against the expected rows, using the same
    assertion vocabulary Phase 0 already built (`src/specdbt/assertions.py`).
 5. **Teardown.** Schema dropped and the generated macro file deleted in a
    `finally` — runs whether the scenario passed, failed, or raised, not
    conditional on success.
 
-**Correction from a real spike, not a docs read:** the design originally
-specified `run-operation --sql "<raw DDL>"` directly for both fixture setup
-and teardown. A scratch dbt+DuckDB project run through `dbtRunner` showed
-this reports `success: True` but **does not actually persist the DDL** — the
-table is absent from the DuckDB file afterward. Wrapping the same SQL in a
-real macro using `{% do run_query(sql) %}`, invoked via `run-operation
-<macro_name>`, does persist correctly — verified against the actual `.duckdb`
-file, not just the reported exit status. `run-operation --sql` behaves like a
-preview/no-commit path, not a side-effecting execution path — undocumented as
-far as I found, so this is empirical, not sourced. Also confirmed empirically
-in the same spike: `dbtRunner.invoke(...)` returns a `dbtRunnerResult(success,
-result, exception)` dataclass; `test --select test_type:unit` results carry
-`.status` (`'pass'`/`'fail'`), `.message` (dbt's own rendered actual-vs-
-expected diff — reusable directly for §4's model-unit-tier reporting, no
-diff-rendering of specdbt's own needed), and `.failures` per unit test.
+**Corrections from real spikes, not docs reads — three separate findings:**
+
+1. The design originally specified `run-operation --sql "<raw DDL>"` directly
+   for both fixture setup and teardown. A scratch dbt+DuckDB project run
+   through `dbtRunner` showed this reports `success: True` but **does not
+   actually persist the DDL** — the table is absent from the DuckDB file
+   afterward. Wrapping the same SQL in a real macro using `{% do
+   run_query(sql) %}`, invoked via `run-operation <macro_name>`, does persist
+   correctly — verified against the actual `.duckdb` file, not just the
+   reported exit status.
+2. A second spike, materializing fixtures against a real `dbt_utils`
+   installation and exercising `generate_surrogate_key()` and `star()`,
+   found that a **`CREATE TABLE ... AS` wrapping `dbt_utils.star()`, run via
+   `run_query()` inside a `run-operation` macro, also reports `success: True`
+   but does not persist** — reproduced on a fresh database file, with the
+   fixture table and the *first* result table (`generate_surrogate_key`'s)
+   both genuinely present, and only the `star()`-wrapping CTAS silently
+   missing, regardless of whether it ran in the same macro invocation as the
+   fixture setup or a fully separate one. The same `star()` call as a plain
+   `SELECT` run through `dbt show --inline` returns correct data every time
+   this was tried. This is the mechanism change described above: no result
+   table, `show --inline` directly.
+3. Confirmed empirically in the same spikes: `dbtRunner.invoke(...)` returns
+   a `dbtRunnerResult(success, result, exception)` dataclass; `test --select
+   test_type:unit` results carry `.status` (`'pass'`/`'fail'`), `.message`
+   (dbt's own rendered actual-vs-expected diff — reusable directly for §4's
+   model-unit-tier reporting, no diff-rendering of specdbt's own needed), and
+   `.failures` per unit test; schema creation is not implicit — `CREATE
+   TABLE` into a nonexistent schema fails, so an explicit `CREATE SCHEMA IF
+   NOT EXISTS` is part of the fixture-setup mechanism.
+
+Findings 1 and 2 are the same class of bug — dbt reporting success on a
+`run_query()` DDL statement that doesn't actually commit — with different,
+apparently unrelated triggers (a raw `--sql` flag; a specific introspective
+macro's CTAS). Neither is documented anywhere I found. The practical
+response to both is the same: **don't trust a reported success — verify
+against the actual database file** — and, for finding 2 specifically, avoid
+the pattern entirely rather than chase its root cause: fixture setup (proven
+reliable across every spike) still goes through `run_query()` in a generated
+macro; the macro/model call under test never does, it always goes through
+`show --inline`.
 
 ### 5.2 Because fixtures are real tables, introspective macros are in scope
 
@@ -272,8 +307,15 @@ them into. If a scenario tagged (or defaulted to) `@unit` has no row-table
 `Then`, or tag `@integration` explicitly), not a silent misroute.
 
 - Models: `When the "<model_name>" model runs` — unchanged from Phase 0.
-- Macros (new): `When the "{{ dbt_utils.generate_surrogate_key(['order_id',
-  'customer_id']) }}" macro runs` — real Jinja verbatim, not a specdbt DSL.
+- Macros (new): `When the "select {{ dbt_utils.generate_surrogate_key(['order_id',
+  'customer_id']) }} as order_key, order_id from {{ ref('orders') }}" macro
+  runs` — a *complete* query, real Jinja/SQL verbatim, not a specdbt DSL.
+  The scenario author writes the whole `select`, not just the macro call:
+  §5.1's second spike found no wrapping shape that works generically across
+  macros (`generate_surrogate_key()` expands to a scalar expression,
+  `star()` to a bare column list — different shapes, no single template fits
+  both), so specdbt does no structural wrapping at all, only the
+  `ref()`/`source()` → fixture substitution.
 - Incremental models (new): `Given the following rows already in "<model>"` →
   `input: this` (§4).
 - Tags (new, all reuse standard Gherkin tag syntax, nothing invented):
@@ -353,9 +395,20 @@ Phase 0's own Phase 1 doc named this explicitly as a signal worth flagging:
 signal the Phase 0 abstraction has a gap worth naming before writing more code
 against it." It does change:
 
-- `run_model(model_name, fixtures) -> ExecutionResult` — signature unchanged,
-  semantics unchanged (still integration-tier real execution).
-- `run_macro(macro_call, fixtures) -> ExecutionResult` — new abstract method.
+- `run_model(model_name, fixtures) -> ExecutionResult` — signature unchanged.
+  On `DbtExecutionAdapter` specifically, this raises clearly rather than
+  silently ignoring `fixtures`: the macro-file substitution mechanism in §5.1
+  only works because a macro call's `ref()`/`source()` arguments are text
+  specdbt's own call site controls. A model's `ref()`s are inside its own SQL
+  file, which this mechanism never touches — running it for real would use
+  whatever real state those refs already resolve to, not the scenario's
+  fixtures, which would silently produce wrong results. `FakeAdapter.run_model`
+  is unaffected (registry lookup, no execution). Real model fixture override
+  needs dbt's own manifest-level compilation (Plan B), which is why §2/§3
+  already scope model-integration-tier as an extension point, not an
+  implementation, for Phase 1.
+- `run_macro(macro_call, fixtures) -> ExecutionResult` — new abstract method,
+  the one `DbtExecutionAdapter` genuinely implements.
 - New parallel interface `NativeTestCompiler` (§3) for the unit tier — not an
   `ExecutionAdapter` method, since delegating-to-dbt's-own-runner and
   driving-real-execution-directly are different enough operations that
