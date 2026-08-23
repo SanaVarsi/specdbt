@@ -13,6 +13,7 @@ from specdbt.parser import Scenario, parse_feature_text
 from specdbt.reporter import FeatureReport, ScenarioReport, StepResult
 
 _WHEN_MODEL_RE = re.compile(r'the "([^"]+)" model runs$')
+_WHEN_MACRO_RE = re.compile(r'the "(.+)" macro runs$')
 
 
 def run_feature_text(source: str, adapter: ExecutionAdapter) -> FeatureReport:
@@ -37,12 +38,18 @@ def _run_scenario(scenario: Scenario, adapter: ExecutionAdapter) -> ScenarioRepo
                 fixture = build_fixture(step)
                 fixtures[fixture.name] = fixture
             elif step.type == "Action":
-                match = _WHEN_MODEL_RE.search(step.text)
-                if match is None:
-                    raise ValueError(f"no When-step pattern matches: {step.text!r}")
-                model_name = match.group(1)
-                results[model_name] = adapter.run_model(model_name, list(fixtures.values()))
-                last_model = model_name
+                model_match = _WHEN_MODEL_RE.search(step.text)
+                if model_match is not None:
+                    model_name = model_match.group(1)
+                    results[model_name] = adapter.run_model(model_name, list(fixtures.values()))
+                    last_model = model_name
+                else:
+                    macro_match = _WHEN_MACRO_RE.search(step.text)
+                    if macro_match is None:
+                        raise ValueError(f"no When-step pattern matches: {step.text!r}")
+                    macro_call = macro_match.group(1)
+                    results[macro_call] = adapter.run_macro(macro_call, list(fixtures.values()))
+                    last_model = macro_call
             else:  # "Outcome"
                 evaluate_then_step(step.text, ThenContext(results=results, last_model=last_model))
         except Exception as exc:  # noqa: BLE001 -- any step-level error becomes a failed step
