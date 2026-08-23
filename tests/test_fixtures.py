@@ -36,6 +36,17 @@ def test_rejects_step_text_that_does_not_match_the_given_pattern():
         build_fixture(step)
 
 
+def test_null_literal_cell_becomes_none_not_empty_string():
+    step = Step(
+        keyword="Given",
+        type="Context",
+        text='the following rows in "raw_weather_stations":',
+        table=[["station_id", "timestamp"], ["BER-001", "NULL"]],
+    )
+    fixture = build_fixture(step)
+    assert fixture.rows == [{"station_id": "BER-001", "timestamp": None}]
+
+
 def test_rejects_given_step_with_no_table():
     step = Step(
         keyword="Given",

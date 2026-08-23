@@ -1,4 +1,4 @@
-Feature: Silver weather standardization
+Feature: Silver weather standardization — casting and normalization
 
   Scenario: A reading is cast and its condition text is lowercased
     Given the following rows in "bronze_weather":
