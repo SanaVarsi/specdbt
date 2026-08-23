@@ -114,3 +114,15 @@ def test_produces_rows_works_with_a_macro_call_as_the_name():
     ctx = ThenContext(results={"select 1 as a": result}, last_model="select 1 as a")
     table = [["a"], ["1"]]
     evaluate_then_step('the "select 1 as a" should produce the following rows:', ctx, table=table)
+
+
+def test_produces_rows_failure_message_shows_expected_and_actual_tables():
+    result = ExecutionResult.of(rows=[{"id": 1, "name": "a"}])
+    ctx = ThenContext(results={"m": result}, last_model="m")
+    table = [["id", "name"], ["1", "ZZZ"]]
+    with pytest.raises(AssertionFailure) as excinfo:
+        evaluate_then_step('the "m" should produce the following rows:', ctx, table=table)
+    message = str(excinfo.value)
+    assert "expected" in message
+    assert "actual" in message
+    assert "ZZZ" in message
