@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 
 from specdbt.adapters.base import ExecutionResult
+from specdbt.adapters.dbt_adapter import DbtExecutionAdapter
 from specdbt.adapters.fake_adapter import FakeAdapter
 from specdbt.reporter import render_feature_report, render_summary
 from specdbt.runner import run_feature_file
@@ -66,24 +67,62 @@ def _load_canned_results(path: Path) -> dict[str, ExecutionResult]:
 
 @cli.command()
 @click.argument("target", type=click.Path(path_type=Path, exists=True))
-def run(target: Path) -> None:
-    """Parse and run the .feature file(s) under TARGET (Phase 0: FakeAdapter only).
+@click.option(
+    "--engine",
+    type=click.Choice(["fake", "dbt"]),
+    default="fake",
+    help="fake (default): FakeAdapter + co-located .canned.py. "
+    "dbt: DbtExecutionAdapter, real execution.",
+)
+@click.option("--project-dir", "project_dir", type=click.Path(path_type=Path, exists=True))
+@click.option("--profiles-dir", "profiles_dir", type=click.Path(path_type=Path, exists=True))
+@click.option("--target", "dbt_target", default=None)
+@click.option("--allow-any-schema", is_flag=True, default=False)
+@click.option("--keep-schema", is_flag=True, default=False)
+def run(
+    target: Path,
+    engine: str,
+    project_dir: Path | None,
+    profiles_dir: Path | None,
+    dbt_target: str | None,
+    allow_any_schema: bool,
+    keep_schema: bool,
+) -> None:
+    """Parse and run the .feature file(s) under TARGET.
 
-    Each FEATURE.feature file may have a co-located FEATURE.canned.py exposing
-    CANNED_RESULTS: dict[str, ExecutionResult], pre-registered into a fresh
-    FakeAdapter before that file's scenarios run.
+    --engine fake (default): each FEATURE.feature file may have a co-located
+    FEATURE.canned.py exposing CANNED_RESULTS: dict[str, ExecutionResult],
+    pre-registered into a fresh FakeAdapter before that file's scenarios run.
+
+    --engine dbt: real execution via DbtExecutionAdapter against --project-dir
+    (required) and --profiles-dir (defaults to --project-dir).
     """
     paths = sorted(target.glob("*.feature")) if target.is_dir() else [target]
     if not paths:
         raise click.ClickException(f"no .feature files found under {target}")
 
+    dbt_adapter: DbtExecutionAdapter | None = None
+    if engine == "dbt":
+        if project_dir is None:
+            raise click.ClickException("--project-dir is required with --engine dbt")
+        dbt_adapter = DbtExecutionAdapter(
+            project_dir=project_dir,
+            profiles_dir=profiles_dir or project_dir,
+            target=dbt_target,
+            allow_any_schema=allow_any_schema,
+            keep_schema=keep_schema,
+        )
+
     reports = []
     for path in paths:
-        adapter = FakeAdapter()
-        canned_path = path.with_suffix(".canned.py")
-        if canned_path.exists():
-            for model_name, result in _load_canned_results(canned_path).items():
-                adapter.register(model_name, result)
+        if dbt_adapter is not None:
+            adapter = dbt_adapter
+        else:
+            adapter = FakeAdapter()
+            canned_path = path.with_suffix(".canned.py")
+            if canned_path.exists():
+                for model_name, result in _load_canned_results(canned_path).items():
+                    adapter.register(model_name, result)
         reports.append(run_feature_file(path, adapter))
 
     for report in reports:
