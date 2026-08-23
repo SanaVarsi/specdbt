@@ -1,4 +1,4 @@
-Feature: Gold weather anomaly detection
+Feature: Gold weather anomaly detection — flags an outlier
 
   Scenario: A sharp spike relative to the rolling baseline is flagged as an anomaly
     Given the following rows in "gold_weather_daily":

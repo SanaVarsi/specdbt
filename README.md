@@ -31,16 +31,19 @@ uv run specdbt run examples/data_pulse/features
 ## How a scenario looks
 
 ```gherkin
-Feature: Silver weather standardization
+Feature: Silver weather standardization — null timestamp handling
 
-  Scenario: A row with a missing timestamp is dropped
+  Scenario: A row with a null timestamp is dropped
     Given the following rows in "bronze_weather":
       | timestamp           | temperature | ... |
       | 2026-08-18 06:00:00 | 18.2        | ... |
-      |                     | 19.0        | ... |
+      | NULL                | 19.0        | ... |
     When the "silver_weather" model runs
     Then "silver_weather" should have 1 row
 ```
+
+`NULL` is the explicit null literal in a Gherkin table cell — a blank cell
+means an empty string, not null; the two are never conflated.
 
 Each `.feature` file may have a co-located `.canned.py` file exposing
 `CANNED_RESULTS: dict[str, ExecutionResult]` — Phase 0's `FakeAdapter` returns
@@ -71,6 +74,26 @@ once this reaches a public repository. The `ExecutionAdapter` interface
 (`src/specdbt/adapters/base.py`) is the extension point: a new backend (a
 different warehouse, a different execution engine) is one new class, not a
 rewrite.
+
+**Known Phase 0 limitations** (by design, not oversight — Phase 1 removes
+most of them):
+- The 5 example scenarios prove the pipeline plumbing end to end; they don't
+  independently validate the real dbt models' logic (`FakeAdapter` returns
+  hand-authored canned rows, it doesn't compute anything). That correctness
+  guarantee is what Phase 1's real adapters + `--parity` mode add.
+- `FakeAdapter` maps one model name to one canned result, so two scenarios
+  against the same real model currently need separate `.feature` files —
+  which is why the report can print the same `Feature:` name more than once
+  if two files happen to share a title. Distinct titles per file avoid this
+  for now; Phase 1's real adapters (which compute from fixtures instead of a
+  static lookup) remove the constraint.
+- `specdbt run` executes whatever Python is in a `.feature` file's
+  `.canned.py` companion — don't run `specdbt run` against `.feature`/
+  `.canned.py` pairs you haven't reviewed, the same way you wouldn't run an
+  unreviewed `conftest.py`.
+- The step-by-step summary counts only steps that were actually attempted —
+  a scenario that fails partway through under-reports its remaining steps as
+  "not there" rather than explicitly "skipped."
 
 ## License
 
