@@ -51,7 +51,11 @@ def _run_scenario(scenario: Scenario, adapter: ExecutionAdapter) -> ScenarioRepo
                     results[macro_call] = adapter.run_macro(macro_call, list(fixtures.values()))
                     last_model = macro_call
             else:  # "Outcome"
-                evaluate_then_step(step.text, ThenContext(results=results, last_model=last_model))
+                evaluate_then_step(
+                    step.text,
+                    ThenContext(results=results, last_model=last_model),
+                    table=step.table or None,
+                )
         except Exception as exc:  # noqa: BLE001 -- any step-level error becomes a failed step
             step_results.append(StepResult(step.keyword, step.text, passed=False, error=str(exc)))
             break

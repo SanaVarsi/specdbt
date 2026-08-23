@@ -20,6 +20,7 @@ class UnrecognizedStepError(ValueError):
     """Raised when a Then/And/But step's text matches none of the known patterns."""
 
 
+_PRODUCES_ROWS_RE = re.compile(r'the "(.+)" should produce the following rows:$')
 _ROW_COUNT_RE = re.compile(r'^"([^"]+)" should have (\d+) rows?$')
 _NOT_NULL_RE = re.compile(r'^column "([^"]+)" in "([^"]+)" should not contain nulls$')
 _UNIQUE_RE = re.compile(r'^column "([^"]+)" in "([^"]+)" should be unique$')
@@ -36,9 +37,29 @@ class ThenContext:
     last_model: str | None
 
 
-def evaluate_then_step(text: str, ctx: ThenContext) -> None:
+def evaluate_then_step(text: str, ctx: ThenContext, table: list[list[str]] | None = None) -> None:
     """Raise AssertionFailure if the expectation doesn't hold, or
-    UnrecognizedStepError if the text matches no known pattern. None on success."""
+    UnrecognizedStepError if the text matches no known pattern. None on
+    success. `table` is the step's data table, if it has one -- only the
+    row-table form (the canonical Then, spec §6) uses it."""
+    if (m := _PRODUCES_ROWS_RE.match(text)) is not None:
+        name = m.group(1)
+        if not table:
+            raise AssertionFailure(f"{text!r} requires a data table of expected rows")
+        result = _lookup(ctx, name)
+        header, *data_rows = table
+        expected_rows = [
+            {column: coerce_scalar(value) for column, value in zip(header, row, strict=True)}
+            for row in data_rows
+        ]
+        if result.rows != expected_rows:
+            raise AssertionFailure(
+                f'"{name}" produced different rows than expected',
+                expected=expected_rows,
+                actual=result.rows,
+            )
+        return
+
     if (m := _ROW_COUNT_RE.match(text)) is not None:
         model_name, expected_count = m.group(1), int(m.group(2))
         result = _lookup(ctx, model_name)

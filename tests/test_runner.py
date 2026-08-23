@@ -98,6 +98,26 @@ def test_run_feature_text_reports_unregistered_macro_as_a_failed_when_step():
     assert scenario.steps[-1].passed is False
 
 
+ROW_TABLE_THEN_SOURCE = """Feature: Row table then
+
+  Scenario: Exact rows match
+    Given the following rows in "orders":
+      | order_id | status |
+      | 1        | placed |
+    When the "m" model runs
+    Then the "m" should produce the following rows:
+      | order_id | status  |
+      | 1        | shipped |
+"""
+
+
+def test_run_feature_text_wires_step_table_into_row_table_then():
+    adapter = FakeAdapter()
+    adapter.register("m", ExecutionResult.of(rows=[{"order_id": 1, "status": "shipped"}]))
+    report = run_feature_text(ROW_TABLE_THEN_SOURCE, adapter)
+    assert report.scenarios[0].passed is True
+
+
 def test_run_feature_file_reads_from_disk(tmp_path: Path):
     adapter = FakeAdapter()
     adapter.register("m", ExecutionResult.of(rows=[{"c": 1}]))
