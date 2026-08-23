@@ -32,6 +32,11 @@ packages = ["src/specdbt"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# docs/ holds prose specs/plans, not source -- ruff 0.16+ formats embedded
+# Python fences in Markdown by default, which would rewrite illustrative
+# code blocks in plan docs to match live-source style rules that don't
+# apply to them.
+extend-exclude = ["docs/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
