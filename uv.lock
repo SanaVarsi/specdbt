@@ -1226,6 +1226,7 @@ dependencies = [
     { name = "dbt-duckdb" },
     { name = "gherkin-official" },
     { name = "polars" },
+    { name = "pyyaml" },
 ]
 
 [package.dev-dependencies]
@@ -1241,6 +1242,7 @@ requires-dist = [
     { name = "dbt-duckdb", specifier = ">=1.9" },
     { name = "gherkin-official", specifier = ">=42.0.1" },
     { name = "polars", specifier = ">=1.20" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 
 [package.metadata.requires-dev]
