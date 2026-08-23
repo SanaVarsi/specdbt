@@ -1,0 +1,7 @@
+dbt_utils_macros:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "dbt_utils_macros.duckdb"
+      schema: main

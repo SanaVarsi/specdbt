@@ -7,3 +7,10 @@ build/
 .pytest_cache/
 .ruff_cache/
 .DS_Store
+
+# dbt example projects (examples/**): real dbt run artifacts, never source
+examples/**/dbt_packages/
+examples/**/logs/
+examples/**/target/
+examples/**/*.duckdb
+examples/**/.user.yml
