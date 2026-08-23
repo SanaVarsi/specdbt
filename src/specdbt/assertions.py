@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+import polars as pl
+
 from specdbt.adapters.base import ExecutionResult
 from specdbt.typing_utils import coerce_scalar
 
@@ -53,8 +55,12 @@ def evaluate_then_step(text: str, ctx: ThenContext, table: list[list[str]] | Non
             for row in data_rows
         ]
         if result.rows != expected_rows:
+            expected_df = pl.DataFrame(expected_rows) if expected_rows else pl.DataFrame()
+            actual_df = pl.DataFrame(result.rows) if result.rows else pl.DataFrame()
             raise AssertionFailure(
-                f'"{name}" produced different rows than expected',
+                f'"{name}" produced different rows than expected:\n'
+                f"--- expected ---\n{expected_df}\n"
+                f"--- actual ---\n{actual_df}",
                 expected=expected_rows,
                 actual=result.rows,
             )
