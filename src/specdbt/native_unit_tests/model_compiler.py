@@ -45,6 +45,7 @@ def compile_scenario(scenario: Scenario) -> CompiledUnitTest:
     has_already_in = False
     when_step: Step | None = None
     then_step: Step | None = None
+    then_model: str | None = None
 
     for step in scenario.steps:
         if step.type == "Context":
@@ -88,6 +89,7 @@ def compile_scenario(scenario: Scenario) -> CompiledUnitTest:
                     f"prose assertions have nothing to translate to in the "
                     f"unit tier. Got: {step.text!r}"
                 )
+            then_model = then_match.group(1)
             if not step.table:
                 raise UnitTestCompileError(f"{step.text!r} requires a data table of expected rows")
             expect_rows = rows_from_data_table(step.table)
@@ -98,6 +100,14 @@ def compile_scenario(scenario: Scenario) -> CompiledUnitTest:
         raise UnitTestCompileError(
             f'@unit scenario "{scenario.name}" has no row-table Then step -- '
             "add one, or tag @integration explicitly (spec §6)"
+        )
+    # Compared post-loop (not inline in the Outcome branch) so the check is
+    # independent of Given/When/Then step order -- both model_name and
+    # then_model are guaranteed non-None by the two checks above.
+    if then_model != model_name:
+        raise UnitTestCompileError(
+            f"@unit scenario's When names model {model_name!r} but Then names "
+            f"{then_model!r} -- a unit test can only check the model it runs"
         )
 
     is_incremental: bool | None = None

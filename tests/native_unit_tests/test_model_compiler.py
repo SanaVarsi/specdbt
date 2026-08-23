@@ -116,6 +116,59 @@ def test_no_incremental_model_tag_leaves_is_incremental_none_even_with_already_i
     assert compiled.is_incremental is None
 
 
+MISMATCHED_THEN_SOURCE = """Feature: F
+
+  @unit
+  Scenario: Then names a different model than When
+    Given the following rows in "upstream_model":
+      | id |
+      | 1  |
+    When the "downstream_model" model runs
+    Then the "totally_other" should produce the following rows:
+      | id |
+      | 1  |
+"""
+
+
+def test_then_step_naming_a_different_model_than_when_raises_unit_test_compile_error():
+    # final review finding 2: the unit tier must not silently take the
+    # model under test from When alone -- a Then naming a different model
+    # is a real error, matching the integration tier's equivalent failure.
+    scenario = parse_feature_text(MISMATCHED_THEN_SOURCE).scenarios[0]
+    with pytest.raises(UnitTestCompileError) as exc_info:
+        compile_scenario(scenario)
+    message = str(exc_info.value)
+    assert "downstream_model" in message
+    assert "totally_other" in message
+
+
+MISMATCHED_THEN_BEFORE_WHEN_SOURCE = """Feature: F
+
+  @unit
+  Scenario: Then names a different model than When, and comes first
+    Given the following rows in "upstream_model":
+      | id |
+      | 1  |
+    Then the "totally_other" should produce the following rows:
+      | id |
+      | 1  |
+    When the "downstream_model" model runs
+"""
+
+
+def test_mismatched_then_and_when_raises_regardless_of_step_order():
+    # Gherkin keyword type comes from the keyword itself, not physical
+    # position -- the mismatch check must not be skippable by writing Then
+    # before When (the comparison happens post-loop, after both are
+    # guaranteed captured, not inline while processing the Outcome step).
+    scenario = parse_feature_text(MISMATCHED_THEN_BEFORE_WHEN_SOURCE).scenarios[0]
+    with pytest.raises(UnitTestCompileError) as exc_info:
+        compile_scenario(scenario)
+    message = str(exc_info.value)
+    assert "downstream_model" in message
+    assert "totally_other" in message
+
+
 PROSE_THEN_SOURCE = """Feature: F
 
   @unit
