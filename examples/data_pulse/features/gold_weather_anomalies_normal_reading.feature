@@ -1,4 +1,4 @@
-Feature: Gold weather anomaly detection
+Feature: Gold weather anomaly detection — normal reading
 
   Scenario: A reading close to the rolling baseline is not flagged
     Given the following rows in "gold_weather_daily":
