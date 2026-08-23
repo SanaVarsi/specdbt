@@ -8,6 +8,9 @@ license = { text = "MIT" }
 dependencies = [
     "gherkin-official>=42.0.1",
     "click>=8.4.2",
+    "dbt-core>=1.9,<2.0.0",
+    "dbt-duckdb>=1.9",
+    "polars>=1.20",
 ]
 
 [project.scripts]

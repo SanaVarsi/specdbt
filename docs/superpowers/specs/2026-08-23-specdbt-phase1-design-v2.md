@@ -138,36 +138,54 @@ integration-tier extension point (§2) can, in principle, still test it.
 This is Phase 1's other proven cell, and the direct answer to "test macros
 end-to-end against dbt's real execution."
 
-### 5.1 Mechanism
+### 5.1 Mechanism (corrected against a real spike — see note below)
 
 One ephemeral schema per scenario run, named `specdbt_<uuid>`, created and
-torn down entirely through `dbtRunner.invoke(["run-operation", "--sql", ...])`
-— the same officially documented mechanism dbt itself uses for ad-hoc
-DDL/DML against the real target connection:
+torn down through a **generated macro file**, invoked via
+`dbtRunner.invoke(["run-operation", "<macro_name>", ...])`:
 
-1. **Given → real tables.** Each fixture is materialized via a `CREATE TABLE
-   ... AS` with a literal `VALUES` list, built using dbt's own cross-database
+1. **Given → real tables.** specdbt writes a temporary macro file
+   (`macros/_specdbt_<run_id>.sql`) into the target project containing a
+   macro that does `{% do run_query(sql) %}` for a `CREATE TABLE ... AS`
+   with a literal `VALUES` list per fixture, then invokes it via
+   `run-operation`. Literal formatting uses dbt's own cross-database
    type/literal macros (`dbt.type_string`, `dbt.string_literal`, etc. — the
-   same macros `dbt_utils` itself uses internally for cross-adapter
-   compatibility) so literal formatting is correct per-warehouse without
-   specdbt hand-writing dialect SQL.
-2. **When → real macro call.** The macro call is real, verbatim Jinja — no
-   specdbt-invented call syntax to keep in sync with dbt's own (see §6) —
-   wrapped in a `CREATE TABLE ... AS (<macro call>)` and executed the same
-   way. Any `ref()`/`source()` inside that literal referring to a fixture name
-   is substituted for the ephemeral fixture's real relation before execution.
-3. **Result readback.** The result table is read back via `dbt show --inline`
-   into a Polars DataFrame.
+   same macros `dbt_utils` itself uses internally) so it's correct
+   per-warehouse without specdbt hand-writing dialect SQL.
+2. **When → real macro call.** Same generated-macro-file mechanism: the
+   macro-under-test's call is real, verbatim Jinja — no specdbt-invented call
+   syntax (see §6) — wrapped in `{% do run_query("create table ... as (" ~
+   <macro call> ~ ")") %}` inside the generated macro, invoked the same way.
+   Any `ref()`/`source()` inside that literal referring to a fixture name is
+   textually substituted for the ephemeral fixture's real relation *before*
+   the macro file is written (specdbt's own preprocessing, not dbt's `ref`
+   resolution — a fixture isn't a real project node).
+3. **Result readback.** The result table is read back via `dbt show --inline
+   --output json`, then `result.result.results[0].agate_table` — an `agate`
+   table with `.column_names` and `.rows`, converted directly to a Polars
+   DataFrame with `pl.DataFrame([dict(zip(agate_tbl.column_names, row)) for
+   row in agate_tbl.rows])`.
 4. **Then → Polars diff** against the expected rows, using the same
    assertion vocabulary Phase 0 already built (`src/specdbt/assertions.py`).
-5. **Teardown.** Schema dropped in a `finally` — runs whether the scenario
-   passed, failed, or raised, not conditional on success.
+5. **Teardown.** Schema dropped and the generated macro file deleted in a
+   `finally` — runs whether the scenario passed, failed, or raised, not
+   conditional on success.
 
-*(Two implementation details — the exact `dbtRunner` result object shape for
-capturing pass/fail programmatically, and the exact `dbt show --inline`
-result-capture API — need verifying against the installed dbt-core version at
-plan-writing time; noted here rather than asserted, since I haven't run this
-code yet.)*
+**Correction from a real spike, not a docs read:** the design originally
+specified `run-operation --sql "<raw DDL>"` directly for both fixture setup
+and teardown. A scratch dbt+DuckDB project run through `dbtRunner` showed
+this reports `success: True` but **does not actually persist the DDL** — the
+table is absent from the DuckDB file afterward. Wrapping the same SQL in a
+real macro using `{% do run_query(sql) %}`, invoked via `run-operation
+<macro_name>`, does persist correctly — verified against the actual `.duckdb`
+file, not just the reported exit status. `run-operation --sql` behaves like a
+preview/no-commit path, not a side-effecting execution path — undocumented as
+far as I found, so this is empirical, not sourced. Also confirmed empirically
+in the same spike: `dbtRunner.invoke(...)` returns a `dbtRunnerResult(success,
+result, exception)` dataclass; `test --select test_type:unit` results carry
+`.status` (`'pass'`/`'fail'`), `.message` (dbt's own rendered actual-vs-
+expected diff — reusable directly for §4's model-unit-tier reporting, no
+diff-rendering of specdbt's own needed), and `.failures` per unit test.
 
 ### 5.2 Because fixtures are real tables, introspective macros are in scope
 
@@ -184,6 +202,11 @@ Real, possibly-shared warehouse connections change the risk profile from
 Phase 0's in-memory `FakeAdapter`:
 - Every specdbt-created object lives under `specdbt_<uuid>` — never the
   project's real schemas.
+- The generated macro file (`macros/_specdbt_<run_id>.sql`) is the one
+  artifact specdbt writes into the target project's own source tree, not just
+  the warehouse — it is deleted in the same teardown as the schema drop, and
+  named with a `_specdbt_` prefix + run id specifically so a crash-abandoned
+  file is unambiguous to spot and safe to delete by hand.
 - Teardown always runs, including on interrupt where feasible (best-effort,
   documented as such — not guaranteed if the process is hard-killed).
 - `--keep-schema` debug flag skips teardown so a failure can be inspected by
@@ -276,10 +299,18 @@ Replaces the data-pulse dogfood examples (kept in git history only):
 
 - `dbt-core` (PyPI)
 - `dbt-duckdb` (PyPI)
-- `dbt_utils` — installed via the target project's `packages.yml`, not PyPI.
-  Different supply-chain surface (dbt Hub / git-based package resolution, not
-  pip) — needs its own short note in the security review rather than being
-  silently treated as covered by the PyPI checks above.
+- `polars` (PyPI)
+- `dbt_utils` — installed via the target *example* project's `packages.yml`,
+  not PyPI. Different supply-chain surface (dbt Hub / git-based package
+  resolution, not pip) — needs its own short note in the security review
+  rather than being silently treated as covered by the PyPI checks above.
+
+**Checked and installed (2026-08-23):** OSV.dev clean for `dbt-core` 1.12.2,
+`dbt-duckdb` 1.11.0, `duckdb` 1.5.5, `polars` 1.43.2, and transitive deps
+`dbt-adapters` 1.24.5 / `dbt-common` 1.39.0; full-environment `pip-audit`
+after `uv sync` reported no known vulnerabilities. Resolved under this
+machine's 3-day `exclude-newer` uv policy — `dbt-core` 1.12.3 (published
+2026-08-21, inside the window) was excluded in favor of 1.12.2.
 
 ## 10. What changes vs. Phase 0's `ExecutionAdapter`
 
@@ -312,7 +343,7 @@ no live-credential requirement.
 - `specdbt run` executes at least 2 dbt_utils macro scenarios via the
   integration tier, including one exercising an introspective macro
   (`star()`), with schema teardown verified (no leftover `specdbt_*` schema
-  after a run, pass or fail).
+  and no leftover `macros/_specdbt_*.sql` file after a run, pass or fail).
 - `specdbt docs` renders a living-documentation Markdown artifact from the
   example scenarios.
 - `docs/gherkin-style-guide.md` exists and the example scenarios conform to
