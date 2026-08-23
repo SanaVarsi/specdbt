@@ -10,6 +10,10 @@ from pathlib import Path
 from dbt.cli.main import dbtRunner
 
 from specdbt.adapters.base import ExecutionAdapter, ExecutionResult
+from specdbt.adapters.prod_guard import (  # noqa: F401 -- re-exported for tests/test_dbt_adapter.py
+    ProdSchemaGuardError,
+    guard_against_prod_target,
+)
 from specdbt.dbt_integration.fixture_sql import render_fixture_ctas
 from specdbt.dbt_integration.macro_file import (
     delete_macro_file,
@@ -24,11 +28,6 @@ from specdbt.fixtures import Fixture
 
 class DbtInvocationError(RuntimeError):
     """Raised when a dbtRunner.invoke() call fails."""
-
-
-class ProdSchemaGuardError(RuntimeError):
-    """Raised when the configured target name looks like production and
-    allow_any_schema was not passed."""
 
 
 class ModelIntegrationTierNotImplementedError(NotImplementedError):
@@ -50,12 +49,7 @@ class DbtExecutionAdapter(ExecutionAdapter):
         allow_any_schema: bool = False,
         keep_schema: bool = False,
     ) -> None:
-        if target and "prod" in target.lower() and not allow_any_schema:
-            raise ProdSchemaGuardError(
-                f"target {target!r} looks like production -- refusing to run. "
-                "Pass allow_any_schema=True (CLI: --allow-any-schema) if this "
-                "is really what you want."
-            )
+        guard_against_prod_target(target, allow_any_schema)
         self._project_dir = Path(project_dir)
         self._profiles_dir = Path(profiles_dir)
         self._target = target
