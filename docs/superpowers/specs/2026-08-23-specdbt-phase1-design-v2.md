@@ -219,6 +219,34 @@ plan-time detail":
    selective build — cheap for the example project's five models, and
    avoids specdbt reimplementing dbt's own ref-graph resolution just to
    compute a minimal `--select` set.
+7. **`expect: rows:` is order-insensitive but count-sensitive** — a
+   two-row `expect:` block listed in reverse order still passes against
+   the same two given rows, but an `expect:` missing one copy of a
+   duplicated given row correctly fails. This is multiset (bag) equality
+   on the projected rows, not list equality and not set equality. This is
+   a second, independent orthogonality break from finding 4: the
+   integration tier's current row-table `Then`
+   (`result.rows != expected_rows`, a list comparison) is order-sensitive,
+   so the same Gherkin table would mean two different things across tiers
+   were this left unfixed. Fixed the same way as finding 4: Plan B changes
+   the row-table `Then`'s comparison, for both tiers, to multiset equality
+   over the expected table's column projection (`collections.Counter` over
+   each row reduced to a hashable tuple of its expected columns, in the
+   expected table's column order) — order-insensitive, duplicate-count-
+   sensitive, matching dbt's own native semantics exactly.
+8. **Finding 6's exception: `input: this` needs the model under test
+   itself pre-built, not just its `given:` inputs.** `this` refers to the
+   tested model's own real relation, so the same column-type introspection
+   in finding 6 applies to it too — verified: a unit test using
+   `input: this` fails with the identical "relation doesn't exist" error
+   if only its `given: input: ref(...)` targets are pre-built, and passes
+   once the model itself is also built. This doesn't change finding 6's
+   chosen implementation (one `dbt run` for the whole project already
+   builds every model, `input: this` scenarios included) — it explains
+   *why* whole-project prebuild is the right choice rather than a
+   per-scenario minimal `--select` of only each scenario's `given:`
+   targets, which would silently be insufficient for exactly the
+   incremental-model scenarios §12's Definition of Done requires.
 
 ## 5. Macro path: integration tier (specdbt-native, real execution)
 
@@ -385,10 +413,11 @@ design depends on.
 identically whether the resolved tier is unit (maps directly to dbt's
 `expect: rows:`) or integration (specdbt diffs the same table against its own
 `ExecutionResult` with Polars — the mechanism §5.1 already builds), and, per
-§4.1 finding 4, "identically" specifically means **column-projection**: only
-the columns named in the expected table's header are compared, in both
-tiers, matching dbt's own native `expect:` semantics exactly rather than
-specdbt inventing a stricter one. Phase 0's
+§4.1 findings 4 and 7, "identically" specifically means **column-projection,
+multiset comparison**: only the columns named in the expected table's
+header are compared, and row order doesn't matter (duplicate counts do), in
+both tiers — matching dbt's own native `expect:` semantics exactly rather
+than specdbt inventing a stricter one. Phase 0's
 prose assertions (`should have N rows`, `should be unique`, `should not be
 null`) remain supported, but only as *additional* steps in an
 integration-tagged scenario, never as the sole `Then` in a scenario that
