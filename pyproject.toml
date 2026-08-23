@@ -10,6 +10,9 @@ dependencies = [
     "click>=8.4.2",
 ]
 
+[project.scripts]
+specdbt = "specdbt.cli:cli"
+
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
