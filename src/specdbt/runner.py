@@ -60,8 +60,14 @@ def _detect_resource_kind(scenario: Scenario) -> str:
 def _run_scenario(
     scenario: Scenario, adapter: ExecutionAdapter, registry: CompilerRegistry
 ) -> ScenarioReport:
-    resource_kind = _detect_resource_kind(scenario)
-    tier = resolve_tier(scenario.tags, resource_kind, registry)
+    try:
+        resource_kind = _detect_resource_kind(scenario)
+        tier = resolve_tier(scenario.tags, resource_kind, registry)
+    except Exception as exc:  # noqa: BLE001 -- a malformed scenario becomes one failed scenario, not a crashed run
+        return ScenarioReport(
+            name=scenario.name,
+            steps=[StepResult("Scenario", scenario.name, passed=False, error=str(exc))],
+        )
 
     if tier == "unit":
         try:

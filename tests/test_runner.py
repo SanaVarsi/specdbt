@@ -231,3 +231,31 @@ def test_run_feature_text_without_a_registry_arg_still_works_integration_only():
     adapter.register("m", ExecutionResult.of(rows=[{"c": 1}]))
     report = run_feature_text(UNTAGGED_MODEL_SOURCE, adapter)
     assert report.scenarios[0].passed is True
+
+
+GRACEFUL_DEGRADATION_SOURCE = """Feature: F
+
+  Scenario: Malformed, missing a When step
+    Given the following rows in "a":
+      | c |
+      | 1 |
+    Then "a" should have 1 row
+
+  Scenario: Well-formed, should still run
+    Given the following rows in "a":
+      | c |
+      | 1 |
+    When the "m" model runs
+    Then the "m" should produce the following rows:
+      | c |
+      | 1 |
+"""
+
+
+def test_a_malformed_scenario_fails_gracefully_without_crashing_the_whole_run():
+    registry = CompilerRegistry()  # no "model" compiler -- both scenarios resolve integration
+    adapter = FakeAdapter()
+    adapter.register("m", ExecutionResult.of(rows=[{"c": 1}]))
+    report = run_feature_text(GRACEFUL_DEGRADATION_SOURCE, adapter, registry)  # must not raise
+    assert report.scenarios[0].passed is False
+    assert report.scenarios[1].passed is True
