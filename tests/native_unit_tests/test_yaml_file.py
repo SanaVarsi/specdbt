@@ -73,5 +73,14 @@ def test_write_and_delete_unit_test_yaml(tmp_path: Path):
     assert not path.exists()
 
 
+def test_write_unit_test_yaml_respects_custom_model_paths_dir(tmp_path: Path):
+    # final review finding 1: must not hardcode "models" -- a project with
+    # a non-default model-paths (e.g. "transform") needs the generated
+    # YAML written where dbt will actually parse it.
+    path = write_unit_test_yaml(tmp_path, "abc123", "unit_tests: []\n", model_paths_dir="transform")
+    assert path == tmp_path / "transform" / "_specdbt_abc123.yml"
+    assert path.read_text() == "unit_tests: []\n"
+
+
 def test_delete_unit_test_yaml_is_a_noop_if_already_gone(tmp_path: Path):
     delete_unit_test_yaml(tmp_path / "models" / "does_not_exist.yml")  # must not raise

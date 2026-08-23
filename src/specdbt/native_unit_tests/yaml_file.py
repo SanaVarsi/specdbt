@@ -41,8 +41,14 @@ def render_unit_test_yaml(
     return yaml.safe_dump({"unit_tests": [entry]}, sort_keys=False)
 
 
-def write_unit_test_yaml(project_dir: Path, run_id: str, content: str) -> Path:
-    path = Path(project_dir) / "models" / f"{unit_test_name(run_id)}.yml"
+def write_unit_test_yaml(
+    project_dir: Path, run_id: str, content: str, model_paths_dir: str = "models"
+) -> Path:
+    """`model_paths_dir` is the project's actual model-paths directory (dbt
+    only parses YAML under model-paths, source-paths, etc. -- writing into a
+    hardcoded "models" on a project that configures a non-default
+    model-paths means dbt never sees the generated file at all)."""
+    path = Path(project_dir) / model_paths_dir / f"{unit_test_name(run_id)}.yml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
     return path

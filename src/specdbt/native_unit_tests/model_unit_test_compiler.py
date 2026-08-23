@@ -66,10 +66,17 @@ class ModelUnitTestCompiler(NativeTestCompiler):
             expect_rows=compiled.expect_rows,
             is_incremental=compiled.is_incremental,
         )
-        yaml_path = write_unit_test_yaml(self._project_dir, run_id, yaml_text)
+        yaml_path = write_unit_test_yaml(
+            self._project_dir, run_id, yaml_text, model_paths_dir=self._model_paths_dir()
+        )
         try:
             selector = f"unit_test:{project_name}.{unit_test_name(run_id)}"
             result = self._invoke_test(["test", "--select", selector])
+            if not result.result.results:
+                raise DbtInvocationError(
+                    f"dbt test --select {selector!r} matched no unit test node -- "
+                    "check model-paths in dbt_project.yml"
+                )
             test_result = result.result.results[0]
             passed = test_result.status == "pass"
             message = _ANSI_RE.sub("", test_result.message or "") if not passed else None
@@ -103,11 +110,45 @@ class ModelUnitTestCompiler(NativeTestCompiler):
         project_yml = self._project_dir / "dbt_project.yml"
         return _yaml.safe_load(project_yml.read_text())["name"]
 
+    def _model_paths_dir(self) -> str:
+        """dbt only parses YAML placed under model-paths (default
+        ["models"]) -- the generated unit-test YAML must land there or dbt
+        silently never sees it (spec §4.1, final review finding 1)."""
+        project_yml = self._project_dir / "dbt_project.yml"
+        config = _yaml.safe_load(project_yml.read_text())
+        model_paths = config.get("model-paths") or ["models"]
+        return model_paths[0]
+
     def _invoke_must_succeed(self, args: list[str]):
         result = self._raw_invoke(args)
         if not result.success:
-            raise DbtInvocationError(f"dbt {args[0]} failed: {result.exception}")
+            raise DbtInvocationError(f"dbt {args[0]} failed: {self._failure_detail(result)}")
         return result
+
+    def _failure_detail(self, result) -> str:
+        """Best-effort extraction of node-level failure info (each failing
+        seed/run node's name + message) for a more informative diagnostic
+        than the bare result.exception, which is None whenever the
+        invocation itself ran fine but a node inside it failed (final
+        review finding 3). Falls back to result.exception for genuine
+        invocation-level failures, where result.result is None. Defensive:
+        never lets a shape surprise here raise past this method."""
+        if result.result is not None:
+            try:
+                details = []
+                ok_statuses = {"success", "pass", "skipped", "no-op", "reused"}
+                for node_result in result.result.results:
+                    status = str(getattr(node_result, "status", ""))
+                    if status and status not in ok_statuses:
+                        node = getattr(node_result, "node", None)
+                        name = getattr(node, "name", None) or "?"
+                        message = getattr(node_result, "message", None) or "(no message)"
+                        details.append(f"{name}: {message}")
+                if details:
+                    return "; ".join(details)
+            except Exception:
+                pass
+        return str(result.exception)
 
     def _invoke_test(self, args: list[str]):
         """Unlike _invoke_must_succeed, result.success == False is the

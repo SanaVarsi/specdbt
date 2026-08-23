@@ -146,6 +146,66 @@ def test_run_raises_dbt_invocation_error_when_prebuild_fails(
         compiler.run(scenario)
 
 
+def test_run_resolves_model_paths_dir_from_dbt_project_yml(
+    scratch_dbt_project_with_upstream_custom_model_paths: Path,
+):
+    # final review finding 1, part 1: a project with a non-default
+    # model-paths (here "transform") must still have the generated
+    # unit-test YAML land where dbt actually parses it -- previously
+    # hardcoded "models" meant the unit_test: selector matched nothing and
+    # result.result.results[0] raised IndexError instead of a real result.
+    compiler = ModelUnitTestCompiler(
+        project_dir=scratch_dbt_project_with_upstream_custom_model_paths,
+        profiles_dir=scratch_dbt_project_with_upstream_custom_model_paths / "profiles",
+    )
+    scenario = parse_feature_text(PASSING_SOURCE).scenarios[0]
+    step_results = compiler.run(scenario)
+    assert len(step_results) == 3
+    assert all(r.passed for r in step_results)
+    transform_dir = scratch_dbt_project_with_upstream_custom_model_paths / "transform"
+    assert list(transform_dir.glob("_specdbt_*.yml")) == []
+
+
+def test_run_raises_dbt_invocation_error_not_index_error_on_empty_results(
+    scratch_dbt_project_with_upstream: Path, monkeypatch
+):
+    # final review finding 1, part 2: guards result.result.results[0]
+    # against an empty list. Forced independently of part 1's model-paths
+    # fix by making the selector's project name wrong, so
+    # `unit_test:<project>.<name>` matches zero unit test nodes even
+    # though the generated YAML is written to the correct directory.
+    compiler = ModelUnitTestCompiler(
+        project_dir=scratch_dbt_project_with_upstream,
+        profiles_dir=scratch_dbt_project_with_upstream / "profiles",
+    )
+    monkeypatch.setattr(compiler, "_project_name", lambda: "not_the_real_project_name")
+    scenario = parse_feature_text(PASSING_SOURCE).scenarios[0]
+    with pytest.raises(DbtInvocationError, match="matched no unit test node"):
+        compiler.run(scenario)
+
+
+def test_run_raises_informative_message_when_prebuild_node_fails(
+    scratch_dbt_project_with_upstream: Path,
+):
+    # final review finding 3: a node-level failure during the prebuild
+    # seed/run step must not surface as the content-free "dbt run failed:
+    # None" (result.exception is None here -- the invocation itself
+    # succeeded, a node inside it failed).
+    (scratch_dbt_project_with_upstream / "models" / "upstream_model.sql").write_text(
+        "select * from no_such_table\n"
+    )
+    compiler = ModelUnitTestCompiler(
+        project_dir=scratch_dbt_project_with_upstream,
+        profiles_dir=scratch_dbt_project_with_upstream / "profiles",
+    )
+    scenario = parse_feature_text(PASSING_SOURCE).scenarios[0]
+    with pytest.raises(DbtInvocationError) as exc_info:
+        compiler.run(scenario)
+    message = str(exc_info.value)
+    assert message != "dbt run failed: None"
+    assert "upstream_model" in message
+
+
 def test_run_works_across_multiple_calls_on_the_same_compiler_instance(
     scratch_dbt_project_with_upstream: Path,
 ):
