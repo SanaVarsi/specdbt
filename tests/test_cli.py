@@ -130,3 +130,55 @@ def test_compile_reports_not_implemented(tmp_path: Path):
     result = runner.invoke(cli, ["compile", str(feature), "--to", "dbt-unit-tests"])
     assert result.exit_code != 0
     assert "Phase 2" in result.output
+
+
+def test_run_with_dbt_engine_and_unit_tagged_scenario_uses_the_model_unit_test_compiler(
+    tmp_path: Path,
+):
+    project_dir = tmp_path / "proj"
+    (project_dir / "models").mkdir(parents=True)
+    (project_dir / "profiles").mkdir()
+    (project_dir / "dbt_project.yml").write_text(
+        'name: proj\nversion: "1.0.0"\nconfig-version: 2\nprofile: proj\nmodel-paths: ["models"]\n'
+    )
+    (project_dir / "profiles" / "profiles.yml").write_text(
+        "proj:\n  target: dev\n  outputs:\n    dev:\n      type: duckdb\n"
+        '      path: "proj.duckdb"\n      schema: main\n'
+    )
+    (project_dir / "models" / "upstream.sql").write_text("select 1 as id, 'placed' as status\n")
+    (project_dir / "models" / "downstream.sql").write_text(
+        "select id, upper(status) as status from {{ ref('upstream') }}\n"
+    )
+
+    features = tmp_path / "features"
+    features.mkdir()
+    (features / "unit.feature").write_text(
+        "Feature: Unit\n\n"
+        "  @unit\n"
+        "  Scenario: Uppercase status\n"
+        '    Given the following rows in "upstream":\n'
+        "      | id | status |\n"
+        "      | 1  | placed |\n"
+        '    When the "downstream" model runs\n'
+        '    Then the "downstream" should produce the following rows:\n'
+        "      | id | status |\n"
+        "      | 1  | PLACED |\n"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "run",
+            str(features),
+            "--engine",
+            "dbt",
+            "--project-dir",
+            str(project_dir),
+            "--profiles-dir",
+            str(project_dir / "profiles"),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "1 scenario(s)" in result.output
+    assert "0 failure(s)" in result.output
