@@ -28,6 +28,13 @@ def test_registry_get_returns_the_registered_compiler():
     assert registry.get("model") is compiler
 
 
+def test_two_registries_do_not_share_state():
+    r1 = CompilerRegistry()
+    r1.register("model", _StubCompiler())
+    r2 = CompilerRegistry()
+    assert r2.get("model") is None
+
+
 def test_resolve_tier_explicit_unit_tag_wins():
     registry = CompilerRegistry()  # nothing registered
     assert resolve_tier(["@unit"], "macro", registry) == "unit"
