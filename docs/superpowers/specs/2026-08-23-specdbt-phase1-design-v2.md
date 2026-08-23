@@ -146,12 +146,23 @@ torn down through a **generated macro file**, invoked via
 
 1. **Given → real tables.** specdbt writes a temporary macro file
    (`macros/_specdbt_<run_id>.sql`) into the target project containing a
-   macro that does `{% do run_query(sql) %}` for a `CREATE TABLE ... AS`
-   with a literal `VALUES` list per fixture, then invokes it via
-   `run-operation`. Literal formatting uses dbt's own cross-database
-   type/literal macros (`dbt.type_string`, `dbt.string_literal`, etc. — the
-   same macros `dbt_utils` itself uses internally) so it's correct
-   per-warehouse without specdbt hand-writing dialect SQL.
+   macro that first does `{% do run_query("create schema if not exists
+   specdbt_<uuid>") %}` — **schema creation is not implicit**; a `CREATE
+   TABLE` into a nonexistent schema fails, verified in the spike — then, per
+   fixture, `{% do run_query(sql) %}` for a `CREATE TABLE ... AS` with a
+   literal `VALUES` list, before invoking the whole macro via
+   `run-operation`. String literals use the exact call chain dbt-core's own
+   native unit-test fixture SQL generator uses internally (found in the
+   installed package at
+   `dbt/include/global_project/macros/unit_test_sql/get_fixture_sql.sql:95`):
+   `dbt.string_literal(dbt.escape_single_quotes(value))` — **not**
+   `dbt.string_literal()` alone, which a spike showed performs **no escaping
+   at all** (`default__string_literal` is a bare `'{{ value }}'`; a raw
+   `O'Brien` broke the generated SQL). `escape_single_quotes` is the macro
+   that actually doubles `'` → `''`, adapter-dispatched the same way, so this
+   chain is correct per-warehouse without specdbt reimplementing SQL escaping
+   itself. Round-trip verified in the spike for embedded single quotes,
+   double quotes, and backslashes.
 2. **When → real macro call.** Same generated-macro-file mechanism: the
    macro-under-test's call is real, verbatim Jinja — no specdbt-invented call
    syntax (see §6) — wrapped in `{% do run_query("create table ... as (" ~
@@ -236,6 +247,29 @@ and integration tiers are two different guarantees, not two implementations
 of the same guarantee at different speeds.
 
 ## 6. Gherkin grammar additions
+
+**`Then` must mean the same thing regardless of tier — this was wrong in the
+first pass of this design and is corrected here.** That pass gave unit tier a
+row-table `Then` (to map onto dbt's `expect: rows:`) and left integration
+tier on Phase 0's prose assertions (`should have N rows`, `should be
+unique`) as the *only* form. Since tier is supposed to be orthogonal to the
+scenario (§3) — explicit tag or resolved automatically — a scenario whose
+only `Then` is prose silently can't run as `@unit`, and one written as a row
+table changes meaning if retagged. That breaks the orthogonality the tier
+design depends on.
+
+**Fix: the row-table `Then` is canonical for both tiers.**
+`Then the "<model>" should produce the following rows:` + a data table works
+identically whether the resolved tier is unit (maps directly to dbt's
+`expect: rows:`) or integration (specdbt diffs the same table against its own
+`ExecutionResult` with Polars — the mechanism §5.1 already builds). Phase 0's
+prose assertions (`should have N rows`, `should be unique`, `should not be
+null`) remain supported, but only as *additional* steps in an
+integration-tagged scenario, never as the sole `Then` in a scenario that
+might resolve to unit tier — the unit-tier compiler has nothing to translate
+them into. If a scenario tagged (or defaulted to) `@unit` has no row-table
+`Then`, that's an error at compile time naming the fix (add a row-table
+`Then`, or tag `@integration` explicitly), not a silent misroute.
 
 - Models: `When the "<model_name>" model runs` — unchanged from Phase 0.
 - Macros (new): `When the "{{ dbt_utils.generate_surrogate_key(['order_id',
@@ -352,3 +386,18 @@ no live-credential requirement.
   Phase 0's rule.
 - Existing 60 Phase 0 tests plus new Phase 1 tests pass; `ruff` clean.
 - Nothing pushed; still no git remote configured.
+
+## 13. Implementation sequencing
+
+Two independent plan docs, not one — the macro integration tier and the
+model unit tier share only the interface boundary (§3), and their innards
+don't depend on each other. **Plan A (macro integration tier) executes
+first.** It's the part dbt genuinely cannot do natively (dbt-core#10547), it
+exercises every new primitive this design introduces (literal rendering,
+macro-file generation, `ref()`/`source()` substitution, `show --inline`
+readback, Polars diff, teardown), and it's the part already grounded in a
+real spike rather than documentation alone. Plan B (model unit tier — compile
+Gherkin to `unit_tests:` YAML, shell to `dbt test`) is smaller, lower-risk,
+reuses none of Plan A's machinery, and is written after Plan A lands. This
+Definition of Done (§12) completes across both plans, not within either one
+alone; each plan produces working, testable software on its own.
