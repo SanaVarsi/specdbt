@@ -29,3 +29,11 @@ class ExecutionAdapter(ABC):
         """Run `model_name` with the given fixtures substituted for its
         refs/sources, and return the resulting rows."""
         raise NotImplementedError
+
+    @abstractmethod
+    def run_macro(self, macro_call: str, fixtures: list[Fixture]) -> ExecutionResult:
+        """Run `macro_call` -- a complete, real Jinja/SQL query string (not
+        just a macro call expression; see spec §5.1/§6), with the given
+        fixtures' ref()/source() substituted for their ephemeral relations
+        -- and return the resulting rows."""
+        raise NotImplementedError
