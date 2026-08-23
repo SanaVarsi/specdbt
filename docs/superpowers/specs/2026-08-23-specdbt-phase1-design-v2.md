@@ -193,6 +193,32 @@ plan-time detail":
    was picked up correctly by the very next `invoke()` call on that same
    instance with no restart and no explicit re-parse step — the same
    proven-safe pattern as Plan A's generated macro file (§5.1).
+6. **A unit test's `given: input: ref(...)`/`source(...)` targets must
+   already exist as real, built relations in the target database** — not
+   just parseable model files — or the run fails with `Compilation Error
+   ... Not able to get columns for unit test '<input>' ... because the
+   relation doesn't exist`, raised from dbt's own
+   `macros/unit_test_sql/get_fixture_sql.sql`. Root cause: dbt introspects
+   the *real* relation's column types to correctly cast each fixture row's
+   values (this is what makes a bare `2018-01-01` string in a YAML fixture
+   correctly become a real `DATE`, not stay a string) — it does not derive
+   types from the model's compiled SQL alone. Verified precisely: a `dbt
+   run --select <the given input's model>` before the unit test is both
+   *necessary* (test fails without it) and *sufficient* (the model under
+   test itself does **not** need to be separately built — only its
+   `given:`-referenced ancestors do). This means **the unit tier is not
+   fully ephemeral the way the macro/integration tier is (§5.3)** — it
+   writes real materialized tables into the project's actually-configured
+   target schema before any test runs, not a throwaway `specdbt_<uuid>`
+   one. Consequence for Plan B: `ModelUnitTestCompiler` needs the same
+   heuristic prod-schema guard `DbtExecutionAdapter` already has (§5.3),
+   applied to *its* `dbt run` step; and the simplest correct sequencing is
+   one `dbt run` for the whole project (dbt's own dependency graph already
+   orders it correctly) once per `specdbt run --engine dbt` invocation that
+   contains any unit-tier scenarios, not a per-scenario or per-input
+   selective build — cheap for the example project's five models, and
+   avoids specdbt reimplementing dbt's own ref-graph resolution just to
+   compute a minimal `--select` set.
 
 ## 5. Macro path: integration tier (specdbt-native, real execution)
 
