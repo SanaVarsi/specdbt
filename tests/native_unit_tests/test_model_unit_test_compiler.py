@@ -131,6 +131,21 @@ def test_run_raises_dbt_invocation_error_when_the_model_does_not_exist(
     assert list((scratch_dbt_project_with_upstream / "models").glob("_specdbt_*.yml")) == []
 
 
+def test_run_raises_dbt_invocation_error_when_prebuild_fails(
+    scratch_dbt_project_with_upstream: Path,
+):
+    (scratch_dbt_project_with_upstream / "models" / "upstream_model.sql").write_text(
+        "select * from no_such_table\n"
+    )
+    compiler = ModelUnitTestCompiler(
+        project_dir=scratch_dbt_project_with_upstream,
+        profiles_dir=scratch_dbt_project_with_upstream / "profiles",
+    )
+    scenario = parse_feature_text(PASSING_SOURCE).scenarios[0]
+    with pytest.raises(DbtInvocationError):
+        compiler.run(scenario)
+
+
 def test_run_works_across_multiple_calls_on_the_same_compiler_instance(
     scratch_dbt_project_with_upstream: Path,
 ):
