@@ -133,6 +133,67 @@ reimplementing. A scenario hitting one of these gets a clear "dbt's native
 unit tests don't support this — use `@integration`" error, since the
 integration-tier extension point (§2) can, in principle, still test it.
 
+### 4.1 Mechanism, corrected against a real spike (2026-08-23, plan-B time)
+
+Three spikes against a scratch dbt-duckdb project (two unit tests, one
+passing, one deliberately failing, on a model with an extra un-asserted
+column) settled every open question §4 originally left as "implementation-
+plan-time detail":
+
+1. **Selector: `unit_test:{project}.{name}` is a real, working selector
+   method** — resolves to exactly one node, verified against
+   `dbtRunner.invoke(["test", "--select", "unit_test:probe.test_passes"])`.
+   (Bare `--select {name}` also works, per dbt's own docs, since unit test
+   names are project-unique — but the qualified form is what specdbt uses,
+   since it's the one actually exercised in the spike and reads unambiguous
+   at the call site.)
+2. **`dbtRunnerResult.success` is `False` on a legitimate, well-formed test
+   failure** — not just on a genuine invocation error. Confirmed: a
+   deliberately-wrong `expect:` block produces `success=False` with
+   `r.exception is None` and `r.result` populated with one `TestStatus.Fail`
+   result. This means `DbtExecutionAdapter._invoke` (§5.1/Plan A's helper,
+   which raises `DbtInvocationError` on `not result.success`) **cannot be
+   reused as-is for `dbt test`** — a correctly-reported scenario failure
+   would otherwise raise an exception instead of producing a clean specdbt
+   failure report. The unit-tier compiler needs its own invoke path that
+   only raises when `r.result is None` (confirmed empirically to mean a
+   genuine parse/compile error — verified by pointing a unit test at a
+   nonexistent model, which produced `r.result is None`,
+   `r.exception = ParsingError(...)`, `r.success = False`) — a populated
+   `r.result` with `r.success = False` means "ran, and at least one test
+   failed," which is the normal path, not an error.
+3. **`result.status` is a `TestStatus` enum** (`TestStatus.Pass` /
+   `TestStatus.Fail`), not a plain string — but it compares equal to the
+   plain strings `"pass"`/`"fail"` directly (`TestStatus` is string-valued),
+   so `result.status == "pass"` works with no special import or `.value`
+   access needed. `result.message` is `""` on pass, and on fail contains
+   dbt's own actual-vs-expected diff wrapped in ANSI color escape codes
+   (`\x1b[...m`) — strip with `re.sub(r"\x1b\[[0-9;]*m", "", message)`
+   before handing to specdbt's reporter. `result.failures` is a plain `int`
+   count (`0` or `1` in the spike, matching O31).
+4. **`expect: rows:` compares only the columns it lists, not every column
+   the model actually produces.** A `given:` fixture with an extra
+   `extra_col` the `expect:` block never mentions still passes — dbt does
+   column *projection* against `expect:`'s own header, not full-row
+   equality against the model's real output shape. **This breaks §6's
+   stated orthogonality** ("`Then` must mean the same thing regardless of
+   tier") as originally written, since the integration tier's row-table
+   `Then` currently does full `dict` equality
+   (`result.rows != expected_rows`, `src/specdbt/assertions.py`). Fix,
+   applied in Plan B: the row-table `Then` is redefined, for **both**
+   tiers, as column-projection — only the columns named in the expected
+   table's header are compared, any other column the actual result carries
+   is ignored. This is a behavior change to the integration tier's existing
+   comparison (Plan A's Task 9/10), tightened here so a scenario's meaning
+   genuinely does not change when retagged `@unit`/`@integration`.
+5. **No `partial_parse.msgpack` staleness problem for this pattern.** A
+   brand-new unit-test YAML file, written to disk *after* the adapter's
+   `dbtRunner()` instance already exists (mid-process, on the same instance
+   Plan A's `DbtExecutionAdapter` builds once in `__init__` and reuses),
+   was picked up correctly by the very next `invoke()` call on that same
+   instance with no restart and no explicit re-parse step — the same
+   proven-safe pattern as Plan A's generated macro file (§5.1).
+
 ## 5. Macro path: integration tier (specdbt-native, real execution)
 
 This is Phase 1's other proven cell, and the direct answer to "test macros
@@ -297,7 +358,11 @@ design depends on.
 `Then the "<model>" should produce the following rows:` + a data table works
 identically whether the resolved tier is unit (maps directly to dbt's
 `expect: rows:`) or integration (specdbt diffs the same table against its own
-`ExecutionResult` with Polars — the mechanism §5.1 already builds). Phase 0's
+`ExecutionResult` with Polars — the mechanism §5.1 already builds), and, per
+§4.1 finding 4, "identically" specifically means **column-projection**: only
+the columns named in the expected table's header are compared, in both
+tiers, matching dbt's own native `expect:` semantics exactly rather than
+specdbt inventing a stricter one. Phase 0's
 prose assertions (`should have N rows`, `should be unique`, `should not be
 null`) remain supported, but only as *additional* steps in an
 integration-tagged scenario, never as the sole `Then` in a scenario that
@@ -454,3 +519,15 @@ Gherkin to `unit_tests:` YAML, shell to `dbt test`) is smaller, lower-risk,
 reuses none of Plan A's machinery, and is written after Plan A lands. This
 Definition of Done (§12) completes across both plans, not within either one
 alone; each plan produces working, testable software on its own.
+
+**Revised at Plan B write-time (2026-08-23):** three plans, not two. Plan B's
+own scope is the unit tier itself plus the `@unit`/`@integration` tag routing
+that selects it (§3) — inseparable from the tier, since routing *is* how a
+scenario reaches it — plus `docs/gherkin-style-guide.md` (one static file,
+no code dependency on either tier, trivial to fold in). `specdbt docs`
+(living documentation) is deferred to a **Plan C**: it renders `.feature`
+files via the existing `FeatureReport`/`render_feature_report` structures
+Phase 0 already shipped, has zero dependency on which tier a scenario
+resolves to, and stands alone under the same "each plan produces working,
+testable software on its own" rule this section already established. §12's
+Definition of Done completes across all three plans.
