@@ -8,6 +8,9 @@ license = { text = "MIT" }
 dependencies = [
     "gherkin-official>=42.0.1",
     "click>=8.4.2",
+    "dbt-core>=1.9,<2.0.0",
+    "dbt-duckdb>=1.9",
+    "polars>=1.20",
 ]
 
 [project.scripts]
@@ -29,6 +32,11 @@ packages = ["src/specdbt"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# docs/ holds prose specs/plans, not source -- ruff 0.16+ formats embedded
+# Python fences in Markdown by default, which would rewrite illustrative
+# code blocks in plan docs to match live-source style rules that don't
+# apply to them.
+extend-exclude = ["docs/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

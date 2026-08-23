@@ -7,3 +7,15 @@ build/
 .pytest_cache/
 .ruff_cache/
 .DS_Store
+
+# dbt example projects (examples/**): real dbt run artifacts, never source
+examples/**/dbt_packages/
+examples/**/logs/
+examples/**/target/
+examples/**/*.duckdb
+examples/**/.user.yml
+# Test runs with a relative `path:` in a scratch profiles.yml resolve it
+# against the process cwd, not --project-dir -- stray .duckdb files can end
+# up at the repo root when tests run from here. Not committed either way,
+# but keep them out of `git status` noise.
+/*.duckdb

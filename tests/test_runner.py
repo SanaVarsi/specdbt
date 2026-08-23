@@ -72,6 +72,52 @@ def test_run_feature_text_reports_unregistered_model_as_a_failed_when_step():
     assert scenario.steps[1].passed is False
 
 
+MACRO_WHEN_SOURCE = """Feature: Macro when step
+
+  Scenario: A macro call runs
+    Given the following rows in "orders":
+      | order_id | status |
+      | 1        | placed |
+    When the "select order_id from orders" macro runs
+    Then "select order_id from orders" should have 1 row
+"""
+
+
+def test_run_feature_text_routes_macro_when_step_to_run_macro():
+    adapter = FakeAdapter()
+    adapter.register("select order_id from orders", ExecutionResult.of(rows=[{"order_id": 1}]))
+    report = run_feature_text(MACRO_WHEN_SOURCE, adapter)
+    assert report.scenarios[0].passed is True
+
+
+def test_run_feature_text_reports_unregistered_macro_as_a_failed_when_step():
+    adapter = FakeAdapter()
+    report = run_feature_text(MACRO_WHEN_SOURCE, adapter)
+    scenario = report.scenarios[0]
+    assert scenario.passed is False
+    assert scenario.steps[-1].passed is False
+
+
+ROW_TABLE_THEN_SOURCE = """Feature: Row table then
+
+  Scenario: Exact rows match
+    Given the following rows in "orders":
+      | order_id | status |
+      | 1        | placed |
+    When the "m" model runs
+    Then the "m" should produce the following rows:
+      | order_id | status  |
+      | 1        | shipped |
+"""
+
+
+def test_run_feature_text_wires_step_table_into_row_table_then():
+    adapter = FakeAdapter()
+    adapter.register("m", ExecutionResult.of(rows=[{"order_id": 1, "status": "shipped"}]))
+    report = run_feature_text(ROW_TABLE_THEN_SOURCE, adapter)
+    assert report.scenarios[0].passed is True
+
+
 def test_run_feature_file_reads_from_disk(tmp_path: Path):
     adapter = FakeAdapter()
     adapter.register("m", ExecutionResult.of(rows=[{"c": 1}]))

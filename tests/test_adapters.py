@@ -40,3 +40,16 @@ def test_fake_adapter_ignores_fixtures_content():
     adapter.register("m", result)
     fixture = Fixture(name="raw", rows=[{"x": 1}])
     assert adapter.run_model("m", fixtures=[fixture]) is result
+
+
+def test_fake_adapter_run_macro_returns_registered_result():
+    adapter = FakeAdapter()
+    result = ExecutionResult.of(rows=[{"a": 1}])
+    adapter.register("select 1 as a", result)
+    assert adapter.run_macro("select 1 as a", fixtures=[]) is result
+
+
+def test_fake_adapter_run_macro_raises_for_unregistered_call():
+    adapter = FakeAdapter()
+    with pytest.raises(ModelNotRegisteredError):
+        adapter.run_macro("select 1", fixtures=[])
