@@ -1,4 +1,14 @@
-# specdbt — Phase 1 Design (DRAFT — awaiting review, not started)
+# specdbt — Phase 1 Design (SUPERSEDED)
+
+**Superseded by `2026-08-23-specdbt-phase1-design-v2.md`.** After review, the
+user asked for real multi-warehouse support (Snowflake/Databricks, not just
+DuckDB), macro testing (dbt has no native unit tests for macros), and grounding
+in official dbt/Cucumber docs rather than a from-scratch reimplementation. That
+changes this doc's core bet (Polars/DuckDB reimplementation + `--parity`) badly
+enough that v2 replaces it rather than amending it. Kept for history only —
+do not implement anything below this line.
+
+---
 
 **Status: proposal only.** Written 2026-08-23 immediately after Phase 0 shipped
 (see `2026-08-23-specdbt-phase0-design.md` and its plan doc). Nothing in this
