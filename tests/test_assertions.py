@@ -86,3 +86,31 @@ def test_referencing_a_model_that_has_not_run_raises_assertion_failure():
     ctx = ThenContext(results={}, last_model=None)
     with pytest.raises(AssertionFailure):
         evaluate_then_step('"nope" should have 1 row', ctx)
+
+
+def test_produces_rows_passes_on_exact_match():
+    result = ExecutionResult.of(rows=[{"id": 1, "name": "a"}, {"id": 2, "name": "b"}])
+    ctx = ThenContext(results={"m": result}, last_model="m")
+    table = [["id", "name"], ["1", "a"], ["2", "b"]]
+    evaluate_then_step('the "m" should produce the following rows:', ctx, table=table)
+
+
+def test_produces_rows_fails_on_mismatch():
+    result = ExecutionResult.of(rows=[{"id": 1, "name": "a"}])
+    ctx = ThenContext(results={"m": result}, last_model="m")
+    table = [["id", "name"], ["1", "ZZZ"]]
+    with pytest.raises(AssertionFailure):
+        evaluate_then_step('the "m" should produce the following rows:', ctx, table=table)
+
+
+def test_produces_rows_requires_a_table():
+    ctx = ThenContext(results={"m": ExecutionResult.of(rows=[])}, last_model="m")
+    with pytest.raises(AssertionFailure):
+        evaluate_then_step('the "m" should produce the following rows:', ctx, table=None)
+
+
+def test_produces_rows_works_with_a_macro_call_as_the_name():
+    result = ExecutionResult.of(rows=[{"a": 1}])
+    ctx = ThenContext(results={"select 1 as a": result}, last_model="select 1 as a")
+    table = [["a"], ["1"]]
+    evaluate_then_step('the "select 1 as a" should produce the following rows:', ctx, table=table)
