@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import polars as pl
 
 from specdbt.adapters.base import ExecutionResult
-from specdbt.typing_utils import coerce_scalar
+from specdbt.typing_utils import coerce_scalar, rows_from_data_table
 
 
 class AssertionFailure(AssertionError):
@@ -49,11 +49,7 @@ def evaluate_then_step(text: str, ctx: ThenContext, table: list[list[str]] | Non
         if not table:
             raise AssertionFailure(f"{text!r} requires a data table of expected rows")
         result = _lookup(ctx, name)
-        header, *data_rows = table
-        expected_rows = [
-            {column: coerce_scalar(value) for column, value in zip(header, row, strict=True)}
-            for row in data_rows
-        ]
+        expected_rows = rows_from_data_table(table)
         if result.rows != expected_rows:
             expected_df = pl.DataFrame(expected_rows) if expected_rows else pl.DataFrame()
             actual_df = pl.DataFrame(result.rows) if result.rows else pl.DataFrame()

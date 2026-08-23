@@ -1,4 +1,4 @@
-from specdbt.typing_utils import coerce_scalar
+from specdbt.typing_utils import coerce_scalar, rows_from_data_table
 
 
 def test_coerces_integers():
@@ -45,3 +45,13 @@ def test_does_not_coerce_scientific_notation():
 def test_coerces_negative_numbers():
     assert coerce_scalar("-5") == -5
     assert coerce_scalar("-0.5") == -0.5
+
+
+def test_rows_from_data_table_zips_header_with_each_data_row():
+    table = [["id", "name"], ["1", "a"], ["2", "b"]]
+    assert rows_from_data_table(table) == [{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]
+
+
+def test_rows_from_data_table_coerces_each_cell():
+    table = [["id", "flag", "note"], ["1", "true", "NULL"]]
+    assert rows_from_data_table(table) == [{"id": 1, "flag": True, "note": None}]
