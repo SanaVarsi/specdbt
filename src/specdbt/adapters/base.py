@@ -2,6 +2,7 @@
 adapter (FakeAdapter now; PolarsAdapter/DuckDBAdapter/DbtCoreAdapter later)
 implements this and nothing above it needs to know which one is in use.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -17,7 +18,7 @@ class ExecutionResult:
     raw: object = None
 
     @classmethod
-    def of(cls, rows: list[dict], raw: object = None) -> "ExecutionResult":
+    def of(cls, rows: list[dict], raw: object = None) -> ExecutionResult:
         """Convenience constructor: row_count is derived from len(rows)."""
         return cls(rows=rows, row_count=len(rows), raw=raw)
 

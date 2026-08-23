@@ -1,4 +1,5 @@
 """Fixture Builder: turns a Given step's data table into a typed Fixture."""
+
 from __future__ import annotations
 
 import re

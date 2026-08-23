@@ -1,4 +1,5 @@
 """Then-step assertion library (Phase 0 subset — see spec §4)."""
+
 from __future__ import annotations
 
 import re

@@ -4,7 +4,7 @@ import pytest
 
 from specdbt.parser import FeatureParseError, parse_feature_file, parse_feature_text
 
-SAMPLE = '''Feature: Weather station deduplication
+SAMPLE = """Feature: Weather station deduplication
 
   Scenario: Duplicate rows collapse to one
     Given the following rows in "raw_weather_stations":
@@ -13,7 +13,7 @@ SAMPLE = '''Feature: Weather station deduplication
     When the "stg_weather_stations" model runs
     Then "stg_weather_stations" should have 1 row
     And the row for station_id "BER-001" should have source "brightsky"
-'''
+"""
 
 
 def test_parses_feature_and_scenario_names():
@@ -33,7 +33,9 @@ def test_conjunction_step_inherits_previous_type():
     # the "And" step above follows a "Then" (Outcome) step and must inherit "Outcome"
     scenario = parse_feature_text(SAMPLE).scenarios[0]
     assert scenario.steps[3].type == "Outcome"
-    assert scenario.steps[3].text == 'the row for station_id "BER-001" should have source "brightsky"'
+    assert (
+        scenario.steps[3].text == 'the row for station_id "BER-001" should have source "brightsky"'
+    )
 
 
 def test_data_table_captured_as_raw_rows():

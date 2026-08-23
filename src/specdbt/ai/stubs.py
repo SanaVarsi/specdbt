@@ -1,6 +1,7 @@
 """Typed placeholders for the AI layer (Phase 3 -- see the original plan set's
 03-ai-integration-plan.md). Nothing here executes; this only fixes the package
 shape from the Phase 0 spec (§2) so Phase 3 is additive, not a restructure."""
+
 from __future__ import annotations
 
 _NOT_YET = "AI features ship in Phase 3 -- see the roadmap doc."

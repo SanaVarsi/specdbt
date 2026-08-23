@@ -1,5 +1,6 @@
 """Wires parser -> fixtures -> adapter -> assertions -> reporter into one
 pipeline (spec: docs/superpowers/specs/2026-08-23-specdbt-phase0-design.md)."""
+
 from __future__ import annotations
 
 import re
