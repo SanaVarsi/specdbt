@@ -4,11 +4,21 @@ results instead of returning canned ones (spec §3, §5)."""
 
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 
 from dbt.cli.main import dbtRunner
 
 from specdbt.adapters.base import ExecutionAdapter, ExecutionResult
+from specdbt.dbt_integration.fixture_sql import render_fixture_ctas
+from specdbt.dbt_integration.macro_file import (
+    delete_macro_file,
+    render_macro_file,
+    setup_macro_name,
+    teardown_macro_name,
+    write_macro_file,
+)
+from specdbt.dbt_integration.ref_substitution import substitute_fixture_refs
 from specdbt.fixtures import Fixture
 
 
@@ -60,7 +70,28 @@ class DbtExecutionAdapter(ExecutionAdapter):
         )
 
     def run_macro(self, macro_call: str, fixtures: list[Fixture]) -> ExecutionResult:
-        raise NotImplementedError("implemented in Task 7")
+        run_id = uuid.uuid4().hex
+        schema = f"specdbt_{run_id}"
+        fixture_names = {fixture.name for fixture in fixtures}
+        substituted_call = substitute_fixture_refs(macro_call, schema, fixture_names)
+        fixture_ctas = [render_fixture_ctas(schema, fixture) for fixture in fixtures]
+        macro_text = render_macro_file(run_id, schema, fixture_ctas)
+        macro_path = write_macro_file(self._project_dir, run_id, macro_text)
+
+        try:
+            self._invoke(["run-operation", setup_macro_name(run_id)])
+            show_result = self._invoke(
+                ["show", "--inline", substituted_call, "--output", "json", "--limit", "-1"]
+            )
+            agate_table = show_result.result.results[0].agate_table
+            rows = [
+                dict(zip(agate_table.column_names, row, strict=True)) for row in agate_table.rows
+            ]
+            return ExecutionResult.of(rows)
+        finally:
+            if not self._keep_schema:
+                self._invoke(["run-operation", teardown_macro_name(run_id)])
+                delete_macro_file(macro_path)
 
     def _invoke(self, args: list[str]):
         full_args = [
