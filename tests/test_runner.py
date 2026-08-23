@@ -4,7 +4,7 @@ from specdbt.adapters.base import ExecutionResult
 from specdbt.adapters.fake_adapter import FakeAdapter
 from specdbt.runner import run_feature_file, run_feature_text
 
-PASSING_SOURCE = '''Feature: Dedup
+PASSING_SOURCE = """Feature: Dedup
 
   Scenario: One row survives
     Given the following rows in "raw_weather_stations":
@@ -13,7 +13,7 @@ PASSING_SOURCE = '''Feature: Dedup
     When the "stg_weather_stations" model runs
     Then "stg_weather_stations" should have 1 row
     And the row for station_id "BER-001" should have source "brightsky"
-'''
+"""
 
 
 def test_run_feature_text_reports_all_passing_steps():
@@ -29,7 +29,7 @@ def test_run_feature_text_reports_all_passing_steps():
     assert len(report.scenarios[0].steps) == 4
 
 
-FAILING_SOURCE = '''Feature: F
+FAILING_SOURCE = """Feature: F
 
   Scenario: Fails
     Given the following rows in "a":
@@ -38,7 +38,7 @@ FAILING_SOURCE = '''Feature: F
     When the "m" model runs
     Then "m" should have 1 row
     And the row for c "1" should have c 1
-'''
+"""
 
 
 def test_run_feature_text_stops_scenario_at_first_failed_step():
@@ -52,7 +52,7 @@ def test_run_feature_text_stops_scenario_at_first_failed_step():
     assert "expected" in scenario.steps[-1].error
 
 
-UNREGISTERED_MODEL_SOURCE = '''Feature: F
+UNREGISTERED_MODEL_SOURCE = """Feature: F
 
   Scenario: Missing model
     Given the following rows in "a":
@@ -60,7 +60,7 @@ UNREGISTERED_MODEL_SOURCE = '''Feature: F
       | 1 |
     When the "missing" model runs
     Then "missing" should have 1 row
-'''
+"""
 
 
 def test_run_feature_text_reports_unregistered_model_as_a_failed_when_step():
@@ -77,11 +77,11 @@ def test_run_feature_file_reads_from_disk(tmp_path: Path):
     adapter.register("m", ExecutionResult.of(rows=[{"c": 1}]))
     feature_file = tmp_path / "x.feature"
     feature_file.write_text(
-        'Feature: F\n\n'
-        '  Scenario: S\n'
+        "Feature: F\n\n"
+        "  Scenario: S\n"
         '    Given the following rows in "a":\n'
-        '      | c |\n'
-        '      | 1 |\n'
+        "      | c |\n"
+        "      | 1 |\n"
         '    When the "m" model runs\n'
         '    Then "m" should have 1 row\n'
     )

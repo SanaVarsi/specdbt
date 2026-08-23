@@ -36,11 +36,11 @@ def test_run_reports_pass_for_the_scaffolded_example(tmp_path: Path):
 def test_run_exits_nonzero_when_a_scenario_fails(tmp_path: Path):
     feature = tmp_path / "bad.feature"
     feature.write_text(
-        'Feature: F\n\n'
-        '  Scenario: S\n'
+        "Feature: F\n\n"
+        "  Scenario: S\n"
         '    Given the following rows in "a":\n'
-        '      | c |\n'
-        '      | 1 |\n'
+        "      | c |\n"
+        "      | 1 |\n"
         '    When the "missing" model runs\n'
         '    Then "missing" should have 1 row\n'
     )

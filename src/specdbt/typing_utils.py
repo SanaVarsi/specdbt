@@ -1,4 +1,5 @@
 """Shared scalar-value coercion for Gherkin cell/literal text -> Python types."""
+
 from __future__ import annotations
 
 Scalar = bool | int | float | str

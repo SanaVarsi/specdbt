@@ -4,6 +4,7 @@ Wraps `gherkin.parser.Parser` (the same reference parser Cucumber/behave/
 pytest-bdd use) so the rest of specdbt never touches gherkin-official's raw
 dict-based AST directly.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

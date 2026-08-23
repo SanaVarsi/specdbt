@@ -2,6 +2,7 @@
 never computes anything from the fixtures it's given. Proves the pipeline
 plumbing; Phase 1's PolarsAdapter/DuckDBAdapter provide real correctness.
 """
+
 from __future__ import annotations
 
 from specdbt.adapters.base import ExecutionAdapter, ExecutionResult

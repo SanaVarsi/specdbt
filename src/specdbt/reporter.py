@@ -1,5 +1,6 @@
 """Terminal reporting: echoes scenarios back in their own Gherkin language,
 with a pass/fail mark and error detail per step (spec §4)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
