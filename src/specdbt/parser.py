@@ -26,6 +26,7 @@ class Step:
 class Scenario:
     name: str
     steps: list[Step] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -53,6 +54,7 @@ def parse_feature_text(source: str) -> Feature:
         scenario_node = child.get("scenario")
         if scenario_node is None:
             continue  # Background / Rule not supported in Phase 0
+        tags = [tag["name"] for tag in scenario_node.get("tags", [])]
         steps: list[Step] = []
         last_type = "Context"
         for step_node in scenario_node["steps"]:
@@ -75,7 +77,7 @@ def parse_feature_text(source: str) -> Feature:
                     table=table,
                 )
             )
-        scenarios.append(Scenario(name=scenario_node["name"], steps=steps))
+        scenarios.append(Scenario(name=scenario_node["name"], steps=steps, tags=tags))
 
     return Feature(name=feature_node["name"], scenarios=scenarios)
 
