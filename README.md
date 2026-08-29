@@ -20,12 +20,13 @@ uv run specdbt run features/        # parse, run, report
 
 ## Try it against real models
 
-`examples/data_pulse/features/` has 5 scenarios written against real models
-from a live dbt project, including both branches of a `CASE WHEN` in an
-anomaly-detection model:
+`examples/jaffle_shop/features/` has scenarios written against real models
+from a live dbt project, including both branches of an `is_incremental()`
+model:
 
 ```bash
-uv run specdbt run examples/data_pulse/features
+uv run specdbt run examples/jaffle_shop/features --engine dbt \
+  --project-dir examples/jaffle_shop --profiles-dir examples/jaffle_shop/profiles
 ```
 
 ## How a scenario looks
@@ -77,7 +78,7 @@ rewrite.
 
 **Known Phase 0 limitations** (by design, not oversight — Phase 1 removes
 most of them):
-- The 5 example scenarios prove the pipeline plumbing end to end; they don't
+- `--engine fake` scenarios prove the pipeline plumbing end to end; they don't
   independently validate the real dbt models' logic (`FakeAdapter` returns
   hand-authored canned rows, it doesn't compute anything). That correctness
   guarantee is what Phase 1's real adapters + `--parity` mode add.
