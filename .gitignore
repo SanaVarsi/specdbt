@@ -25,3 +25,4 @@ examples/**/.user.yml
 # but keep them out of `git status` noise.
 /*.duckdb
 logs/
+.worktrees/
