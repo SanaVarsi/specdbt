@@ -11,6 +11,14 @@ data team reads it, and its `given`/`expect` blocks don't read as a
 sentence. specdbt scenarios are Gherkin: plain-English documentation of a
 model's contract that also happens to be an executable test.
 
+Macros are worse off: **dbt has no native way to unit test a macro at all**
+([dbt-core#10547](https://github.com/dbt-labs/dbt-core/issues/10547), still
+open). If you use `dbt_utils.generate_surrogate_key`, `dbt_utils.star`, or
+any custom macro, there's no built-in mechanism to pin down its behavior —
+you either test it indirectly through a model or don't test it. specdbt
+gives macros the same BDD interface as models and runs them for real, which
+covers a gap dbt itself doesn't.
+
 ```gherkin
 Feature: stg_customers renames the raw seed's id column
 
@@ -31,17 +39,19 @@ YAML, no hardcoded expected output.
 ## What it does
 
 - Parses `.feature` files (standard Gherkin, no custom dialect).
-- Compiles model scenarios into native dbt `unit_tests:` YAML and runs them
-  through `dbt test`, so you get dbt's own execution engine and error
-  messages — not a reimplementation.
-- Runs macro scenarios (e.g. `dbt_utils.generate_surrogate_key`) directly
-  against a real DuckDB target, seeding fixtures and querying the compiled
-  SQL.
+- **Model scenarios (`@unit`, the default for a `When the "<model>" model
+  runs` step):** compiles the scenario's Given/Then straight into a real
+  dbt `unit_tests:` YAML entry and runs it via `dbt test` — you get dbt's
+  own fixture injection, type-casting, and diffing, not a reimplementation.
+- **Macro scenarios (`@integration`, the default for a `When the "<macro
+  call>" macro runs` step):** since dbt has no native mechanism for this,
+  specdbt seeds `Given` fixtures as real ephemeral tables and runs the
+  macro's actual Jinja/SQL through `dbt show --inline` against a real
+  DuckDB target, then tears the ephemeral state down.
+- Incremental models: tag a scenario `@incremental_model`; adding `And the
+  following rows already in "<model>":` runs it against the
+  `is_incremental()` branch, omitting it runs the full-refresh branch.
 - Reports results per scenario/step in a readable pass/fail summary.
-
-`Given` rows can seed any source or model input; `@incremental_model` +
-`input: this` scenarios can seed a model's own pre-existing state to test
-its `is_incremental()` branch.
 
 ## Quickstart
 
