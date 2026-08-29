@@ -8,8 +8,10 @@ build/
 .ruff_cache/
 .DS_Store
 
-# Serena MCP local tool config, not project source
+# Local tool config/state, not project source
 .serena/
+.superpowers/
+.claude/settings.local.json
 
 # dbt example projects (examples/**): real dbt run artifacts, never source
 examples/**/dbt_packages/
