@@ -27,3 +27,4 @@ examples/**/.user.yml
 /*.duckdb
 logs/
 .worktrees/
+.env

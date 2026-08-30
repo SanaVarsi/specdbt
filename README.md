@@ -69,6 +69,40 @@ Phase 1: real `PolarsAdapter`/`DuckDBAdapter`, `--parity` mode. Phase 2: compile
 scenarios to native dbt `unit_tests:` YAML. Phase 3: AI-assisted fixture
 synthesis, NL→Gherkin, failure triage (stubs already scaffolded in `src/specdbt/ai/`).
 
+## Testing against other adapters
+
+The default `uv run pytest` above only exercises DuckDB. The macro tier's
+adapter-dispatch code routes schema DDL, fixture CTAS, and ref/source
+substitution through dbt-core's own adapter-dispatch primitives so the
+same scenarios run unmodified against other engines. It has two more
+adapter-specific test files, both skipped unless you opt in — neither is
+required for the default suite to pass.
+
+**Postgres** (runnable locally, and CI-verified):
+
+1. Create a `.env` file (gitignored) in the repo root with three lines —
+   pick any values for the two that say "your choice":
+   - `POSTGRES_USER` — your choice, e.g. `specdbt`
+   - `POSTGRES_PASSWORD` — your choice
+   - `POSTGRES_DB` — your choice, e.g. `specdbt_test`
+2. Start it: `docker compose up -d postgres`
+3. Export the *same three values* under the names the test reads, plus two
+   fixed ones, then run the test:
+   ```bash
+   export SPECDBT_PG_USER=<your POSTGRES_USER value>
+   export SPECDBT_PG_SECRET=<your POSTGRES_PASSWORD value>
+   export SPECDBT_PG_DBNAME=<your POSTGRES_DB value>
+   export SPECDBT_PG_HOST=localhost SPECDBT_PG_PORT=5432 SPECDBT_TEST_POSTGRES=1
+   uv run pytest tests/test_dbt_adapter_postgres.py -v
+   ```
+   (Two names per value because `.env`/docker-compose need Postgres's own
+   env var names, while the test — like any Python code — just reads
+   `os.environ`, not `.env`, so the same values need exporting under the
+   names it actually looks for: `tests/conftest.py`.)
+
+**Databricks** (manual, needs your own workspace — no CI, no local
+default): see `docs/databricks-validation-checklist.md`.
+
 ## Contributing
 
 This is an early-stage, unclaimed niche (no existing BDD layer for dbt) built
