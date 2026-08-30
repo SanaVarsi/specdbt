@@ -101,6 +101,7 @@ def test_run_translates_a_failing_unit_test_with_ansi_stripped_diff(
     assert step_results[0].passed is True  # Given
     assert step_results[1].passed is True  # When
     assert step_results[2].passed is False  # Then
+    assert step_results[2].error is not None
     assert "\x1b[" not in step_results[2].error
     assert "ZZZ" in step_results[2].error
 

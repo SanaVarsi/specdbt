@@ -52,6 +52,7 @@ def test_run_feature_text_stops_scenario_at_first_failed_step():
     assert scenario.passed is False
     assert len(scenario.steps) == 3  # Given, When, Then(fails) -- the And is never reached
     assert scenario.steps[-1].passed is False
+    assert scenario.steps[-1].error is not None
     assert "expected" in scenario.steps[-1].error
 
 
@@ -220,6 +221,7 @@ def test_unit_tagged_macro_scenario_fails_clearly_with_no_macro_compiler_registe
     report = run_feature_text(UNIT_TAGGED_MACRO_SOURCE, adapter, registry)
     scenario = report.scenarios[0]
     assert scenario.passed is False
+    assert scenario.steps[0].error is not None
     assert "dbt-core#10547" in scenario.steps[0].error
 
 

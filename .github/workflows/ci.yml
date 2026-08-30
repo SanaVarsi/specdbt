@@ -29,18 +29,27 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          # Pinned to match the uv-pre-commit hook's uv version below --
+          # an unpinned uv here could rewrite uv.lock to a newer lockfile
+          # revision than the hook's `uv lock --check` expects, failing
+          # it for a reason that has nothing to do with an actual drift.
+          version: "0.11.25"
 
       - name: Install dependencies
         run: uv sync --all-extras
 
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Pre-commit hooks (lint, formatting, type-check, hygiene)
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
       - name: Install dbt_utils for the example project
         working-directory: examples/jaffle_shop
         run: uv run --project ../.. dbt deps --profiles-dir profiles
-
-      - name: Lint
-        run: |
-          uv run ruff check .
-          uv run ruff format --check .
 
       - name: Test
         env:

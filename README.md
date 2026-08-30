@@ -114,10 +114,19 @@ version:
 ## Development
 
 ```bash
-uv run pytest       # test suite
-uv run ruff check .
-uv run ruff format .
+uv sync                    # once, pulls in pre-commit
+uv run pre-commit install  # once, wires the git hook
+uv run pytest               # test suite
+uv run pre-commit run --all-files   # everything the hook checks, on demand
 ```
+
+`.pre-commit-config.yaml` runs `ruff` (lint + format), `ty` (type
+checking), `uv-lock` (lockfile/pyproject drift), `codespell`,
+`validate-pyproject`, `detect-secrets`, and a handful of hygiene checks
+(trailing whitespace, merge conflict markers, etc.) on every commit. CI
+runs the identical `pre-commit run --all-files` — same checks, same
+config, in case a commit skipped the local hook (`--no-verify` or a
+first-time clone without `pre-commit install`).
 
 The test suite includes an end-to-end test that runs the real example
 project through the real CLI (`tests/test_examples_jaffle_shop.py`) — a

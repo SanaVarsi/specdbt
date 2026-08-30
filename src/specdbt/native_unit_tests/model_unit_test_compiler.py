@@ -55,6 +55,11 @@ class ModelUnitTestCompiler(NativeTestCompiler):
 
     def run(self, scenario: Scenario) -> list[StepResult]:
         compiled = compile_scenario(scenario)
+        # compile_scenario raises before returning if either is None (see
+        # its own checks) -- asserted here so the type checker can narrow
+        # Step | None the same way that invariant already guarantees.
+        assert compiled.when_step is not None
+        assert compiled.then_step is not None
         self._ensure_project_prebuilt()
 
         run_id = uuid.uuid4().hex
