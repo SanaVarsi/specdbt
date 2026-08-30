@@ -20,3 +20,8 @@ frontmatter, prose in its body, cross-links to related concepts.
 * [Native Unit Tests](native-unit-tests.md) - model unit-tier compiler
 * [CLI](cli.md) - click entrypoint
 * [AI Stubs](ai.md) - unbuilt Phase 3 package
+* [Gherkin Style Guide](gherkin-style-guide.md) - rules for writing
+  declarative, business-behavior-named scenarios
+* [Databricks Validation Checklist](databricks-validation-checklist.md) -
+  manual steps to validate the macro tier against a real Databricks
+  workspace

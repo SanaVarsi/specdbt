@@ -15,7 +15,8 @@ questions about specdbt's design.
 1. Read `docs/knowledge/index.md`.
 2. Read every concept doc it links to (`pipeline.md`,
    `two-tier-design.md`, `adapters.md`, `dbt-integration.md`,
-   `native-unit-tests.md`, `cli.md`, `ai.md`).
+   `native-unit-tests.md`, `cli.md`, `ai.md`, `gherkin-style-guide.md`,
+   `databricks-validation-checklist.md`).
 3. Answer the user's question grounded in that bundle. If something the
    user asks about isn't covered, say so rather than guessing, and fall
    back to reading the relevant source under `src/specdbt/`.

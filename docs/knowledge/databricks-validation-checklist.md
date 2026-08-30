@@ -1,3 +1,10 @@
+---
+type: Validation Checklist
+title: Databricks Validation Checklist
+description: Manual steps to validate the macro tier against a real Databricks/Unity Catalog workspace, since no credentials exist in CI.
+tags: [checklist, databricks, validation]
+---
+
 # Databricks Validation Checklist
 
 No Databricks credentials exist in this repo's CI or dev environment, so
