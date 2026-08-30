@@ -8,6 +8,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: specdbt
+          POSTGRES_DB: specdbt_test
+          POSTGRES_PASSWORD: ${{ secrets.SPECDBT_PG_SECRET }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -29,4 +43,11 @@ jobs:
           uv run ruff format --check .
 
       - name: Test
+        env:
+          SPECDBT_TEST_POSTGRES: "1"
+          SPECDBT_PG_HOST: localhost
+          SPECDBT_PG_PORT: "5432"
+          SPECDBT_PG_USER: specdbt
+          SPECDBT_PG_DBNAME: specdbt_test
+          SPECDBT_PG_SECRET: ${{ secrets.SPECDBT_PG_SECRET }}
         run: uv run pytest -v
