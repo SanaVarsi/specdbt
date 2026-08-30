@@ -56,6 +56,16 @@ make unreadable. No scenario in this project needs it yet — this section
 exists so a future one that does knows the mechanism is sanctioned, not
 invented ad hoc.
 
+## One feature file per macro or model, grouped by resource kind
+
+Organize a project's `features/` directory as `features/<kind>/<name>/<name>.feature`,
+where `<kind>` is `macros` or `models` and `<name>` is the macro or model
+under test — see `examples/jaffle_shop/features/`. A resource with more
+than one feature file's worth of scenarios (e.g. a canonical-behavior
+file plus a data-quality file) still gets one subfolder, holding all of
+them. Feature files are discovered recursively, so nesting costs nothing
+at the CLI.
+
 ## Tag scenarios for what's actually true about them, not for routing tricks
 
 `@unit` / `@integration` (spec §3) state which tier a scenario needs — use

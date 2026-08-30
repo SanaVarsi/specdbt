@@ -1,45 +1,115 @@
 # specdbt
 
-BDD-style `Given`/`When`/`Then` testing for dbt models. Write scenarios a
-stakeholder can read, get a fast structural check today and a real-SQL
-correctness guarantee once Phase 1 lands.
+BDD-style `Given`/`When`/`Then` testing for dbt models and macros. Write a
+scenario a stakeholder can read; specdbt runs it for real against dbt +
+DuckDB and reports pass/fail.
 
-**Status: Phase 0** — the parser → fixture → adapter → assertion → report
-pipeline works end to end against a `FakeAdapter` (hardcoded rows, no real
-SQL/Polars execution yet). See `docs/superpowers/specs/2026-08-23-specdbt-phase0-design.md`
-for what's in and out of scope, and `docs/superpowers/plans/2026-08-23-specdbt-phase0.md`
-for how it was built.
+## Why
+
+dbt's own `unit_tests:` YAML is precise but write-only — nobody outside the
+data team reads it, and its `given`/`expect` blocks don't read as a
+sentence. specdbt scenarios are Gherkin: plain-English documentation of a
+model's contract that also happens to be an executable test.
+
+Macros are worse off: **dbt has no native way to unit test a macro at all**
+([dbt-core#10547](https://github.com/dbt-labs/dbt-core/issues/10547), still
+open). If you use `dbt_utils.generate_surrogate_key`, `dbt_utils.star`, or
+any custom macro, there's no built-in mechanism to pin down its behavior —
+you either test it indirectly through a model or don't test it. specdbt
+gives macros the same BDD interface as models and runs them for real, which
+covers a gap dbt itself doesn't.
+
+```gherkin
+Feature: stg_customers renames the raw seed's id column
+
+  Scenario: Renames id to customer_id, passes names through unchanged
+    Given the following rows in "raw_customers":
+      | id | first_name | last_name |
+      | 1  | Michael    | P.        |
+    When the "stg_customers" model runs
+    Then the "stg_customers" should produce the following rows:
+      | customer_id | first_name | last_name |
+      | 1           | Michael    | P.        |
+```
+
+Run it, and specdbt compiles it into a real dbt unit test, executes it
+against your actual model SQL, and reports the result — no hand-maintained
+YAML, no hardcoded expected output.
+
+## What it does
+
+- Parses `.feature` files (standard Gherkin, no custom dialect).
+- **Model scenarios (`@unit`, the default for a `When the "<model>" model
+  runs` step):** compiles the scenario's Given/Then straight into a real
+  dbt `unit_tests:` YAML entry and runs it via `dbt test` — you get dbt's
+  own fixture injection, type-casting, and diffing, not a reimplementation.
+- **Macro scenarios (`@integration`, the default for a `When the "<macro
+  call>" macro runs` step):** since dbt has no native mechanism for this,
+  specdbt seeds `Given` fixtures as real ephemeral tables and runs the
+  macro's actual Jinja/SQL through `dbt show --inline` against a real
+  DuckDB target, then tears the ephemeral state down.
+- Incremental models: tag a scenario `@incremental_model`; adding `And the
+  following rows already in "<model>":` runs it against the
+  `is_incremental()` branch, omitting it runs the full-refresh branch.
+- Reports results per scenario/step in a readable pass/fail summary.
 
 ## Quickstart
 
 ```bash
 uv sync
-uv run specdbt init features/       # scaffold an example .feature + its canned result
+uv run specdbt init features/       # scaffold an example .feature file
 uv run specdbt run features/        # parse, run, report
 ```
 
-## How a scenario looks
+`specdbt run` needs a real dbt project to execute against — see below for
+a working example.
 
-```gherkin
-Feature: Silver weather standardization — null timestamp handling
+## Run it against a real dbt project
 
-  Scenario: A row with a null timestamp is dropped
-    Given the following rows in "bronze_weather":
-      | timestamp           | temperature | ... |
-      | 2026-08-18 06:00:00 | 18.2        | ... |
-      | NULL                | 19.0        | ... |
-    When the "silver_weather" model runs
-    Then "silver_weather" should have 1 row
+```bash
+cd examples/jaffle_shop && uv run dbt deps --profiles-dir profiles && cd ../..
+uv run specdbt run examples/jaffle_shop/features \
+  --engine dbt \
+  --project-dir examples/jaffle_shop \
+  --profiles-dir examples/jaffle_shop/profiles
 ```
 
-`NULL` is the explicit null literal in a Gherkin table cell — a blank cell
-means an empty string, not null; the two are never conflated.
+This runs models (`stg_customers`, `customers`, `order_history` — including
+both branches of an `is_incremental()` model, and `order_surrogate_keys`,
+which consumes a `dbt_utils` macro inside a model) at the unit tier, and
+macros standalone at the integration tier — `dbt_utils.generate_surrogate_key`/
+`dbt_utils.star`, plus three of the project's own (`macros/`):
+`bucket_order_value` (conditional tiering), `pivot_sum` (a parameterized
+Jinja for-loop generalizing the hardcoded loop in `orders.sql`), and
+`order_value_summary` (composes `bucket_order_value`) — all against a
+real DuckDB target built from `dbt-labs/jaffle-shop-classic` plus
+`dbt-labs/dbt_utils`. One project covers both tiers, since tier is a
+per-scenario default (model → unit, macro → integration), not a
+per-project setting.
 
-Each `.feature` file may have a co-located `.canned.py` file exposing
-`CANNED_RESULTS: dict[str, ExecutionResult]` — Phase 0's `FakeAdapter` returns
-these hardcoded rows rather than computing anything, to prove the pipeline
-plumbing before a real execution engine exists (Phase 1: `PolarsAdapter` /
-`DuckDBAdapter`).
+Scenarios are organized `features/{macros,models}/<name>/<name>.feature`
+— one file per macro or model, feature files discovered recursively.
+
+`--engine fake` (the default) skips dbt entirely: each `.feature` file may
+have a co-located `.canned.py` exposing `CANNED_RESULTS`, useful for
+testing specdbt itself or prototyping a scenario's shape before wiring up
+a real model.
+
+## Writing scenarios
+
+See `docs/gherkin-style-guide.md` for the full style guide. The short
+version:
+
+- Write scenarios declaratively (state the contract, not the steps a
+  human would click through).
+- Name scenarios by business behavior, not mechanism.
+- Data tables (`the following rows in "<x>":`) are the default way to
+  express fixtures and expected output.
+- Tag a scenario `@unit` or `@integration` only when the default (model →
+  unit, macro → integration) is wrong for that scenario.
+- Tag every scenario on an incremental model `@incremental_model` — it
+  states a fact about the model, not just the scenarios that need
+  `input: this`.
 
 ## Development
 
@@ -62,14 +132,12 @@ install`). The one exception is secret scanning: the pre-commit
 against a clean CI checkout, so CI runs a separate `gitleaks-action`
 job that scans the repository's full history instead.
 
-## Roadmap
+The test suite includes an end-to-end test that runs the real example
+project through the real CLI (`tests/test_examples_jaffle_shop.py`) — a
+green suite means the examples above actually work, not just that unit
+tests pass.
 
-Phase 0 (this): skeleton pipeline, `FakeAdapter`, CLI, dogfooded on real models.
-Phase 1: real `PolarsAdapter`/`DuckDBAdapter`, `--parity` mode. Phase 2: compile
-scenarios to native dbt `unit_tests:` YAML. Phase 3: AI-assisted fixture
-synthesis, NL→Gherkin, failure triage (stubs already scaffolded in `src/specdbt/ai/`).
-
-## Testing against other adapters
+### Testing against other adapters
 
 The default `uv run pytest` above only exercises DuckDB. The macro tier's
 adapter-dispatch code routes schema DDL, fixture CTAS, and ref/source
@@ -105,32 +173,19 @@ default): see `docs/databricks-validation-checklist.md`.
 
 ## Contributing
 
-This is an early-stage, unclaimed niche (no existing BDD layer for dbt) built
-in the open with community use in mind — issues, ideas, and PRs are welcome
-once this reaches a public repository. The `ExecutionAdapter` interface
-(`src/specdbt/adapters/base.py`) is the extension point: a new backend (a
-different warehouse, a different execution engine) is one new class, not a
-rewrite.
+Issues, ideas, and PRs are welcome. The `ExecutionAdapter` interface
+(`src/specdbt/adapters/base.py`) is the extension point for a new backend
+(a different warehouse, a different execution engine) — one new class, not
+a rewrite.
 
-**Known Phase 0 limitations** (by design, not oversight — Phase 1 removes
-most of them):
-- The 5 example scenarios prove the pipeline plumbing end to end; they don't
-  independently validate the real dbt models' logic (`FakeAdapter` returns
-  hand-authored canned rows, it doesn't compute anything). That correctness
-  guarantee is what Phase 1's real adapters + `--parity` mode add.
-- `FakeAdapter` maps one model name to one canned result, so two scenarios
-  against the same real model currently need separate `.feature` files —
-  which is why the report can print the same `Feature:` name more than once
-  if two files happen to share a title. Distinct titles per file avoid this
-  for now; Phase 1's real adapters (which compute from fixtures instead of a
-  static lookup) remove the constraint.
-- `specdbt run` executes whatever Python is in a `.feature` file's
-  `.canned.py` companion — don't run `specdbt run` against `.feature`/
-  `.canned.py` pairs you haven't reviewed, the same way you wouldn't run an
-  unreviewed `conftest.py`.
-- The step-by-step summary counts only steps that were actually attempted —
-  a scenario that fails partway through under-reports its remaining steps as
-  "not there" rather than explicitly "skipped."
+Known limitations, by design:
+- `specdbt run` executes whatever's in a `.feature` file's `.canned.py`
+  companion (`--engine fake`) or compiles and runs real dbt SQL
+  (`--engine dbt`) — don't run it against scenarios you haven't reviewed,
+  the same way you wouldn't run an unreviewed `conftest.py`.
+- The step-by-step summary counts only steps that were actually
+  attempted — a scenario that fails partway through under-reports its
+  remaining steps as "not there" rather than explicitly "skipped."
 
 ## License
 
