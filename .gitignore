@@ -8,6 +8,12 @@ build/
 .ruff_cache/
 .DS_Store
 
+# Local tool config/state, not project source
+.serena/
+.superpowers/
+.claude/settings.local.json
+local_work/
+
 # dbt example projects (examples/**): real dbt run artifacts, never source
 examples/**/dbt_packages/
 examples/**/logs/
@@ -19,3 +25,5 @@ examples/**/.user.yml
 # up at the repo root when tests run from here. Not committed either way,
 # but keep them out of `git status` noise.
 /*.duckdb
+logs/
+.worktrees/
