@@ -55,6 +55,14 @@ YAML, no hardcoded expected output.
 
 ## Quickstart
 
+With [`just`](https://github.com/casey/just#installation):
+```bash
+just setup                # uv sync + pre-commit install
+just init features/       # scaffold an example .feature file
+just run features/        # parse, run, report
+```
+
+Without it:
 ```bash
 uv sync
 uv run specdbt init features/       # scaffold an example .feature file
@@ -64,8 +72,65 @@ uv run specdbt run features/        # parse, run, report
 `specdbt run` needs a real dbt project to execute against — see below for
 a working example.
 
+## Installing specdbt in your dbt project
+
+specdbt is a dev-time test runner, not a runtime dependency of your dbt
+project — add it to your project's dev tooling, then point it at the
+project and profile you already have.
+
+```bash
+uv add --dev specdbt          # or: pip install specdbt
+```
+
+specdbt has no per-warehouse code of its own: both tiers execute through
+real `dbt` (`dbtRunner`/`dbt test`) against whatever `profiles.yml`
+target you already use, and the macro tier's fixture/ref plumbing rides
+dbt-core's own adapter-dispatch — so **any warehouse dbt-core supports is
+in scope**. Add that warehouse's dbt adapter alongside specdbt, using the
+matching extra where one exists:
+
+```bash
+uv add --dev "specdbt[databricks]"   # pulls in dbt-databricks
+uv add --dev "specdbt[snowflake]"    # pulls in dbt-snowflake
+uv add --dev "specdbt[postgres]"     # pulls in dbt-postgres
+# DuckDB (dbt-duckdb) ships as a specdbt dependency already -- no extra needed
+```
+No extra for your warehouse? Add its `dbt-<adapter>` package directly —
+extras are a convenience, not a requirement.
+
+Then run it exactly like any other dbt invocation, against your existing
+project:
+
+```bash
+uv run specdbt run features/ \
+  --engine dbt \
+  --project-dir . \
+  --profiles-dir ~/.dbt \
+  --target <your target name>
+```
+(`--project-dir` is required with `--engine dbt`; `--profiles-dir`
+defaults to `--project-dir` if omitted.)
+
+Validation status, so you know what's actually been run against a real
+target in this repo vs. what's expected to work by design:
+- **DuckDB** — the default, CI-verified on every commit.
+- **Postgres** — CI-verified (`gitleaks`-safe `.env`, see Development
+  below).
+- **Databricks** — manually validated against a real workspace; see
+  `docs/knowledge/databricks-validation-checklist.md` for the steps and
+  its one open item (2- vs. 3-part relation naming for catalog-qualified
+  refs).
+- **Snowflake and others** — untested in this repo (no credentials, no
+  checklist yet), but nothing in the design is Postgres/Databricks-
+  specific — if you run it against one, a PR adding a checklist like
+  Databricks' is welcome.
+
 ## Run it against a real dbt project
 
+```bash
+just run-example
+```
+equivalent to:
 ```bash
 cd examples/jaffle_shop && uv run dbt deps --profiles-dir profiles && cd ../..
 uv run specdbt run examples/jaffle_shop/features \
@@ -111,8 +176,28 @@ version:
   states a fact about the model, not just the scenarios that need
   `input: this`.
 
+## Documentation
+
+Architecture reference lives in [`docs/knowledge/`](docs/knowledge/index.md)
+— a knowledge bundle in [Open Knowledge
+Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+v0.2 (Google's OKF spec): one concept doc per module/decision, frontmatter
++ cross-links. Start at `docs/knowledge/index.md`. Claude Code users get
+it loaded on demand via the `/specdbt` skill instead of re-reading
+`src/specdbt/` from scratch.
+
 ## Development
 
+Fast path, needs [`just`](https://github.com/casey/just#installation):
+```bash
+just setup   # uv sync + pre-commit install, checks uv is installed first
+just test    # test suite
+```
+`just doctor` checks for required/optional tools (`uv`, Docker) and
+prints an install command for anything missing. `just` alone lists all
+targets.
+
+Manual path:
 ```bash
 uv sync                    # once, pulls in pre-commit
 uv run pre-commit install  # once, wires the git hook
@@ -148,6 +233,16 @@ required for the default suite to pass.
 
 **Postgres** (runnable locally, and CI-verified):
 
+Fast path, needs [`just`](https://github.com/casey/just#installation) and
+Docker:
+```bash
+just postgres-up     # starts Postgres in Docker, writes .env if missing
+just test-postgres   # exports the right env vars, runs the test
+```
+`just doctor` checks for `uv`/Docker and prints an install command for
+whichever is missing.
+
+Manual path, if you'd rather not install `just`:
 1. Create a `.env` file (gitignored) in the repo root with three lines —
    pick any values for the two that say "your choice":
    - `POSTGRES_USER` — your choice, e.g. `specdbt`
@@ -171,14 +266,8 @@ required for the default suite to pass.
 **Databricks** (manual, needs your own workspace — no CI, no local
 default): see `docs/knowledge/databricks-validation-checklist.md`.
 
-## Contributing
+## Limitations, by design
 
-Issues, ideas, and PRs are welcome. The `ExecutionAdapter` interface
-(`src/specdbt/adapters/base.py`) is the extension point for a new backend
-(a different warehouse, a different execution engine) — one new class, not
-a rewrite.
-
-Known limitations, by design:
 - `specdbt run` executes whatever's in a `.feature` file's `.canned.py`
   companion (`--engine fake`) or compiles and runs real dbt SQL
   (`--engine dbt`) — don't run it against scenarios you haven't reviewed,
@@ -186,6 +275,14 @@ Known limitations, by design:
 - The step-by-step summary counts only steps that were actually
   attempted — a scenario that fails partway through under-reports its
   remaining steps as "not there" rather than explicitly "skipped."
+
+## Contributing
+
+Issues, ideas, and PRs are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md)
+for local setup, conventions, and the release process. The
+`ExecutionAdapter` interface (`src/specdbt/adapters/base.py`) is the
+extension point for a new backend (a different warehouse, a different
+execution engine) — one new class, not a rewrite.
 
 ## License
 

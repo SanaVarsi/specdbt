@@ -2,7 +2,7 @@
 the one adapter this plan cannot validate in this environment (no
 credentials). Skipped unless DATABRICKS_HOST is set; never required for the
 rest of the suite, and never run in this repo's CI. See
-docs/databricks-validation-checklist.md for how to run it against a real
+docs/knowledge/databricks-validation-checklist.md for how to run it against a real
 workspace."""
 
 import os
@@ -18,7 +18,7 @@ pytestmark = pytest.mark.skipif(
     not os.environ.get("DATABRICKS_HOST"),
     reason="set DATABRICKS_HOST/DATABRICKS_HTTP_PATH/DATABRICKS_CONN_SECRET/"
     "DATABRICKS_CATALOG/DATABRICKS_SCHEMA against a real workspace to run this "
-    "test -- see docs/databricks-validation-checklist.md",
+    "test -- see docs/knowledge/databricks-validation-checklist.md",
 )
 
 
