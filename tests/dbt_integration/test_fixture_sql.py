@@ -11,13 +11,13 @@ def test_renders_ctas_with_casts_for_multiple_rows():
         ],
     )
     sql = render_fixture_ctas("specdbt_abc123", fixture)
-    assert sql == (
-        "create table {{ api.Relation.create(schema='specdbt_abc123', identifier='orders') }} as (\n"
+    assert sql == (  # noqa: E501
+        "create table {{ api.Relation.create(schema='specdbt_abc123', identifier='orders') }} as (\n"  # noqa: E501
         "select {{ dbt.cast(1, dbt.type_bigint()) }} as order_id, "
-        '{{ dbt.cast(dbt.string_literal(dbt.escape_single_quotes("placed")), dbt.type_string()) }} as status\n'
+        '{{ dbt.cast(dbt.string_literal(dbt.escape_single_quotes("placed")), dbt.type_string()) }} as status\n'  # noqa: E501
         "union all\n"
         "select {{ dbt.cast(2, dbt.type_bigint()) }} as order_id, "
-        '{{ dbt.cast(dbt.string_literal(dbt.escape_single_quotes("shipped")), dbt.type_string()) }} as status\n'
+        '{{ dbt.cast(dbt.string_literal(dbt.escape_single_quotes("shipped")), dbt.type_string()) }} as status\n'  # noqa: E501
         ")"
     )
 
