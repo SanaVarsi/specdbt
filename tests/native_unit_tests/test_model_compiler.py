@@ -33,6 +33,8 @@ def test_tracks_original_steps_for_reporting():
     compiled = compile_scenario(scenario)
     assert len(compiled.given_steps) == 1
     assert compiled.given_steps[0].text.startswith('the following rows in "raw_customers"')
+    assert compiled.when_step is not None
+    assert compiled.then_step is not None
     assert compiled.when_step.text == 'the "stg_customers" model runs'
     assert compiled.then_step.text.startswith('the "stg_customers" should produce')
 
