@@ -5,6 +5,14 @@ description = "BDD-style Given/When/Then testing for dbt models."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
+authors = [{ name = "SanaVarsi" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+]
 dependencies = [
     "gherkin-official>=42.0.1",
     "click>=8.4.2",
@@ -14,6 +22,18 @@ dependencies = [
     "pyyaml>=6.0",
     "sqlparse>=0.6.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/SanaVarsi/specdbt"
+Repository = "https://github.com/SanaVarsi/specdbt"
+
+# Extra dbt adapter packages for running specdbt against a warehouse other
+# than the DuckDB bundled in `dependencies` -- pick the one matching your
+# dbt project, e.g. `uv add --dev "specdbt[databricks]"`.
+[project.optional-dependencies]
+postgres = ["dbt-postgres>=1.9"]
+databricks = ["dbt-databricks>=1.9"]
+snowflake = ["dbt-snowflake>=1.9"]
 
 [project.scripts]
 specdbt = "specdbt.cli:cli"
