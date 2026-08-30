@@ -22,13 +22,27 @@ def test_render_macro_file_contains_setup_and_teardown_macros():
     )
     assert "{% macro _specdbt_abc123_setup() %}" in text
     assert "{% macro _specdbt_abc123_teardown() %}" in text
-    assert "create schema if not exists specdbt_abc123" in text
+    assert "{% do adapter.create_schema(api.Relation.create(schema='specdbt_abc123')) %}" in text
+    assert "{% do adapter.drop_schema(api.Relation.create(schema='specdbt_abc123')) %}" in text
     assert "create table specdbt_abc123.orders as (select 1)" in text
-    assert "drop schema if exists specdbt_abc123 cascade" in text
-    # each statement goes through set/endset then run_query(sql) -- not an
-    # inlined double-quoted string -- so embedded {{ }} Jinja expressions in
-    # a fixture CTAS (from render_sql_literal) don't break the outer syntax
-    assert text.count("{% do run_query(sql) %}") == 3  # schema + 1 fixture + teardown
+    # schema create/drop now go through adapter.create_schema/drop_schema
+    # directly (dispatch-resolved per adapter, spec: macro-tier
+    # adapter-dispatch design) -- only the fixture CTAS still goes through
+    # set/endset + run_query(sql), so embedded {{ }} Jinja expressions in a
+    # fixture CTAS (from sql_literal_expr) don't break the outer syntax
+    assert text.count("{% do run_query(sql) %}") == 1
+
+
+def test_render_macro_file_with_database_qualifies_the_schema_relation():
+    text = render_macro_file("abc123", "specdbt_abc123", [], database="my_catalog")
+    assert (
+        "{% do adapter.create_schema(api.Relation.create(database='my_catalog', "
+        "schema='specdbt_abc123')) %}" in text
+    )
+    assert (
+        "{% do adapter.drop_schema(api.Relation.create(database='my_catalog', "
+        "schema='specdbt_abc123')) %}" in text
+    )
 
 
 def test_write_and_delete_macro_file(tmp_path: Path):
