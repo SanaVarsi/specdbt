@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 
 import polars as pl
 
 from specdbt.adapters.base import ExecutionResult
-from specdbt.typing_utils import coerce_scalar
+from specdbt.typing_utils import coerce_scalar, rows_from_data_table
 
 
 class AssertionFailure(AssertionError):
@@ -22,7 +23,7 @@ class UnrecognizedStepError(ValueError):
     """Raised when a Then/And/But step's text matches none of the known patterns."""
 
 
-_PRODUCES_ROWS_RE = re.compile(r'the "(.+)" should produce the following rows:$')
+PRODUCES_ROWS_RE = re.compile(r'the "(.+)" should produce the following rows:$')
 _ROW_COUNT_RE = re.compile(r'^"([^"]+)" should have (\d+) rows?$')
 _NOT_NULL_RE = re.compile(r'^column "([^"]+)" in "([^"]+)" should not contain nulls$')
 _UNIQUE_RE = re.compile(r'^column "([^"]+)" in "([^"]+)" should be unique$')
@@ -44,25 +45,31 @@ def evaluate_then_step(text: str, ctx: ThenContext, table: list[list[str]] | Non
     UnrecognizedStepError if the text matches no known pattern. None on
     success. `table` is the step's data table, if it has one -- only the
     row-table form (the canonical Then, spec §6) uses it."""
-    if (m := _PRODUCES_ROWS_RE.match(text)) is not None:
+    if (m := PRODUCES_ROWS_RE.match(text)) is not None:
         name = m.group(1)
         if not table:
             raise AssertionFailure(f"{text!r} requires a data table of expected rows")
         result = _lookup(ctx, name)
-        header, *data_rows = table
-        expected_rows = [
-            {column: coerce_scalar(value) for column, value in zip(header, row, strict=True)}
-            for row in data_rows
+        header = table[0]
+        expected_rows = rows_from_data_table(table)
+        projected_actual_rows = [
+            {column: row.get(column) for column in header} for row in result.rows
         ]
-        if result.rows != expected_rows:
+        expected_counts = Counter(tuple(row[c] for c in header) for row in expected_rows)
+        actual_counts = Counter(tuple(row[c] for c in header) for row in projected_actual_rows)
+        if actual_counts != expected_counts:
             expected_df = pl.DataFrame(expected_rows) if expected_rows else pl.DataFrame()
-            actual_df = pl.DataFrame(result.rows) if result.rows else pl.DataFrame()
+            actual_df = (
+                pl.DataFrame(projected_actual_rows) if projected_actual_rows else pl.DataFrame()
+            )
             raise AssertionFailure(
-                f'"{name}" produced different rows than expected:\n'
+                f'"{name}" produced different rows than expected (only columns '
+                f"{header} are compared; row order doesn't matter, row count "
+                f"does):\n"
                 f"--- expected ---\n{expected_df}\n"
-                f"--- actual ---\n{actual_df}",
+                f"--- actual (projected) ---\n{actual_df}",
                 expected=expected_rows,
-                actual=result.rows,
+                actual=projected_actual_rows,
             )
         return
 

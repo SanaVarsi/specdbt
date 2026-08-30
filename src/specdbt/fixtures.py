@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 
 from specdbt.parser import Step
-from specdbt.typing_utils import coerce_scalar
+from specdbt.typing_utils import rows_from_data_table
 
 _GIVEN_ROWS_RE = re.compile(r'the following rows in "([^"]+)":')
 
@@ -34,9 +34,5 @@ def build_fixture(step: Step) -> Fixture:
         raise FixtureBuildError(f"Given step has no data table: {step.text!r}")
 
     name = match.group(1)
-    header, *data_rows = step.table
-    rows = [
-        {column: coerce_scalar(value) for column, value in zip(header, row, strict=True)}
-        for row in data_rows
-    ]
+    rows = rows_from_data_table(step.table)
     return Fixture(name=name, rows=rows)

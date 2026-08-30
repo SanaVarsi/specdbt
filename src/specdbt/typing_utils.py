@@ -32,3 +32,17 @@ def coerce_scalar(text: str) -> Scalar | None:
     if _FLOAT_RE.match(text):
         return float(text)
     return text
+
+
+def rows_from_data_table(table: list[list[str]]) -> list[dict]:
+    """Turn a Gherkin data table (header row + data rows, both raw strings)
+    into a list of dicts with coerced scalar values -- shared by every step
+    kind that reads a data table: Given fixtures (fixtures.py), the
+    integration tier's row-table Then (assertions.py), and the unit tier's
+    compiler (native_unit_tests/model_compiler.py, Task 6). Caller must
+    ensure table is non-empty."""
+    header, *data_rows = table
+    return [
+        {column: coerce_scalar(value) for column, value in zip(header, row, strict=True)}
+        for row in data_rows
+    ]
