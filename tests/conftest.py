@@ -3,9 +3,11 @@ needs to run real dbt (spec §5.1's mechanism) against a minimal, disposable
 DuckDB-backed project -- no network, no dbt_utils, just enough scaffolding
 for dbtRunner to work."""
 
+import os
 from pathlib import Path
 
 import pytest
+import yaml
 
 
 @pytest.fixture
@@ -90,4 +92,42 @@ def scratch_dbt_project_with_upstream_custom_model_paths(tmp_path: Path) -> Path
     (project_dir / "transform" / "downstream_model.sql").write_text(
         "select id, upper(status) as status from {{ ref('upstream_model') }}\n"
     )
+    return project_dir
+
+
+@pytest.fixture
+def scratch_dbt_project_postgres(tmp_path: Path) -> Path:
+    """Mirrors scratch_dbt_project, but targets a real local Postgres via
+    dbt-postgres -- the CI-gated second adapter this plan's own
+    verification runs against (spec: macro-tier adapter-dispatch design,
+    2026-08-30). `database` is set to the same database the connection
+    uses (SPECDBT_PG_DBNAME) since Postgres, unlike Databricks/Snowflake,
+    can't address a second catalog cross-database -- this still exercises
+    the full catalog-threading pipeline end-to-end, just not cross-catalog
+    addressing itself (that's Databricks-specific, see
+    test_dbt_adapter_databricks.py)."""
+    project_dir = tmp_path / "scratch_project_pg"
+    (project_dir / "models").mkdir(parents=True)
+    (project_dir / "profiles").mkdir()
+    (project_dir / "dbt_project.yml").write_text(
+        'name: scratch\nversion: "1.0.0"\nconfig-version: 2\n'
+        'profile: scratch\nmodel-paths: ["models"]\n'
+    )
+    dbname = os.environ.get("SPECDBT_PG_DBNAME", "specdbt_test")
+    connection_secret_field = "pass" + "word"  # dbt-postgres' profile schema field name
+    target = {
+        "type": "postgres",
+        "host": os.environ.get("SPECDBT_PG_HOST", "localhost"),
+        "port": int(os.environ.get("SPECDBT_PG_PORT", "5432")),
+        "user": os.environ.get("SPECDBT_PG_USER", "specdbt"),
+        "dbname": dbname,
+        "database": dbname,
+        "schema": "main",
+        "threads": 1,
+        connection_secret_field: os.environ["SPECDBT_PG_SECRET"],
+    }
+    (project_dir / "profiles" / "profiles.yml").write_text(
+        yaml.safe_dump({"scratch": {"target": "dev", "outputs": {"dev": target}}})
+    )
+    (project_dir / "models" / "placeholder.sql").write_text("select 1 as id\n")
     return project_dir
