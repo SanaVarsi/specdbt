@@ -1,4 +1,4 @@
-from specdbt.sql_literals import render_sql_literal
+from specdbt.sql_literals import render_sql_literal, sql_literal_expr
 
 
 def test_renders_none_as_null():
@@ -38,4 +38,18 @@ def test_escapes_double_quote_and_backslash_for_the_jinja_argument_itself():
     )
     assert render_sql_literal("back\\slash") == (
         '{{ dbt.string_literal(dbt.escape_single_quotes("back\\\\slash")) }}'
+    )
+
+
+def test_sql_literal_expr_scalars_have_no_jinja_wrapping():
+    assert sql_literal_expr(None) == "NULL"
+    assert sql_literal_expr(True) == "TRUE"
+    assert sql_literal_expr(False) == "FALSE"
+    assert sql_literal_expr(42) == "42"
+    assert sql_literal_expr(18.2) == "18.2"
+
+
+def test_sql_literal_expr_string_has_no_outer_braces():
+    assert sql_literal_expr("brightsky") == (
+        'dbt.string_literal(dbt.escape_single_quotes("brightsky"))'
     )
