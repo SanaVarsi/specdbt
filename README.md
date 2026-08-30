@@ -97,7 +97,7 @@ a real model.
 
 ## Writing scenarios
 
-See `docs/gherkin-style-guide.md` for the full style guide. The short
+See `docs/knowledge/gherkin-style-guide.md` for the full style guide. The short
 version:
 
 - Write scenarios declaratively (state the contract, not the steps a
@@ -169,7 +169,7 @@ required for the default suite to pass.
    names it actually looks for: `tests/conftest.py`.)
 
 **Databricks** (manual, needs your own workspace — no CI, no local
-default): see `docs/databricks-validation-checklist.md`.
+default): see `docs/knowledge/databricks-validation-checklist.md`.
 
 ## Contributing
 
