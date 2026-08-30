@@ -26,7 +26,7 @@ but not against a real Databricks workspace. When you have access to one
    in the configured catalog afterward (check via the Databricks UI or
    `SHOW SCHEMAS IN <catalog> LIKE 'specdbt_%'`).
 5. Optionally, run the `jaffle_shop` example project's scenarios
-   (`examples/jaffle_shop/features/*.feature` — both unit-tier models and
+   (`examples/jaffle_shop/features/` — both unit-tier models and
    integration-tier macros) against the same target, by adding a
    `databricks` output to its `profiles.yml` and passing `--target
    databricks` to the specdbt CLI.

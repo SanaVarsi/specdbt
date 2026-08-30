@@ -58,6 +58,23 @@ def test_run_errors_when_no_feature_files_found(tmp_path: Path):
     assert "no .feature files found" in result.output
 
 
+def test_run_discovers_feature_files_in_nested_subfolders(tmp_path: Path):
+    nested = tmp_path / "features" / "models" / "orders"
+    nested.mkdir(parents=True)
+    (nested / "orders.feature").write_text(
+        "Feature: F\n\n"
+        "  Scenario: S\n"
+        '    Given the following rows in "a":\n'
+        "      | c |\n"
+        "      | 1 |\n"
+        '    When the "missing" model runs\n'
+        '    Then "missing" should have 1 row\n'
+    )
+    runner = CliRunner()
+    result = runner.invoke(cli, ["run", str(tmp_path / "features")])
+    assert "1 scenario(s)" in result.output, result.output
+
+
 def test_run_with_dbt_engine_executes_a_real_macro(tmp_path: Path):
     project_dir = tmp_path / "proj"
     (project_dir / "models").mkdir(parents=True)

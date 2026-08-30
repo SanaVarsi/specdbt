@@ -77,11 +77,18 @@ uv run specdbt run examples/jaffle_shop/features \
 This runs models (`stg_customers`, `customers`, `order_history` — including
 both branches of an `is_incremental()` model, and `order_surrogate_keys`,
 which consumes a `dbt_utils` macro inside a model) at the unit tier, and
-`dbt_utils.generate_surrogate_key`/`dbt_utils.star` macros standalone at
-the integration tier, all against a real DuckDB target built from
-`dbt-labs/jaffle-shop-classic` plus `dbt-labs/dbt_utils`. One project
-covers both, since tier is a per-scenario default (model → unit, macro →
-integration), not a per-project setting.
+macros standalone at the integration tier — `dbt_utils.generate_surrogate_key`/
+`dbt_utils.star`, plus three of the project's own (`macros/`):
+`bucket_order_value` (conditional tiering), `pivot_sum` (a parameterized
+Jinja for-loop generalizing the hardcoded loop in `orders.sql`), and
+`order_value_summary` (composes `bucket_order_value`) — all against a
+real DuckDB target built from `dbt-labs/jaffle-shop-classic` plus
+`dbt-labs/dbt_utils`. One project covers both tiers, since tier is a
+per-scenario default (model → unit, macro → integration), not a
+per-project setting.
+
+Scenarios are organized `features/{macros,models}/<name>/<name>.feature`
+— one file per macro or model, feature files discovered recursively.
 
 `--engine fake` (the default) skips dbt entirely: each `.feature` file may
 have a co-located `.canned.py` exposing `CANNED_RESULTS`, useful for

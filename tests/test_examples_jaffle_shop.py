@@ -3,6 +3,7 @@ DuckDB target, run through the actual CLI a user would run (spec §8, §12
 DoD). One project covers both tiers -- models default to the unit tier,
 macros to the integration tier (spec §3)."""
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -15,6 +16,15 @@ DBT_BIN = Path(sys.executable).parent / "dbt"
 
 
 def test_jaffle_shop_examples_all_pass():
+    # dbt's partial-parse cache under target/ records seed file paths
+    # relative to the cwd it was built from. A prior manual run of this
+    # same project from a different cwd (e.g. the repo root, as the
+    # README's example does) leaves a cache dbt will trust without
+    # re-resolving -- producing spurious "seed file not found" errors here.
+    # This test always runs from EXAMPLE_PROJECT, so any stale cache from a
+    # different cwd is invalid; clear it rather than risk reusing it.
+    shutil.rmtree(EXAMPLE_PROJECT / "target", ignore_errors=True)
+
     if not (EXAMPLE_PROJECT / "dbt_packages").exists():
         subprocess.run(
             [str(DBT_BIN), "deps", "--profiles-dir", "profiles"],
@@ -42,5 +52,5 @@ def test_jaffle_shop_examples_all_pass():
         cwd=EXAMPLE_PROJECT,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "10 scenario(s)" in result.stdout
+    assert "15 scenario(s)" in result.stdout
     assert "0 failure(s)" in result.stdout
