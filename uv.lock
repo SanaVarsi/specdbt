@@ -1308,6 +1308,7 @@ dependencies = [
     { name = "dbt-duckdb" },
     { name = "gherkin-official" },
     { name = "polars" },
+    { name = "pyyaml" },
     { name = "sqlparse" },
 ]
 
@@ -1325,6 +1326,7 @@ requires-dist = [
     { name = "dbt-duckdb", specifier = ">=1.9" },
     { name = "gherkin-official", specifier = ">=42.0.1" },
     { name = "polars", specifier = ">=1.20" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "sqlparse", specifier = ">=0.6.0" },
 ]
 
