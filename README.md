@@ -123,31 +123,38 @@ through the real CLI (`tests/test_examples_jaffle_shop.py`,
 `tests/test_examples_dbt_utils_macros.py`) — a green suite means the
 examples above actually work, not just that unit tests pass.
 
-### Testing against Postgres
+### Testing against other adapters
 
-`tests/test_dbt_adapter_postgres.py` exercises the macro tier's Postgres
-adapter path and is skipped by default. A local Postgres is available via:
+The default `uv run pytest` above only exercises DuckDB. The macro tier's
+adapter-dispatch code (spec:
+`docs/superpowers/specs/2026-08-30-macro-tier-adapter-dispatch-design.md`)
+has two more adapter-specific test files, both skipped unless you opt in —
+neither is required for the default suite to pass.
 
-```bash
-docker compose up -d postgres
-```
+**Postgres** (runnable locally, and CI-verified):
 
-`docker-compose.yml` reads `POSTGRES_USER`, `POSTGRES_PASSWORD`, and
-`POSTGRES_DB` from a local, gitignored `.env` file for the container itself
-(create one with values of your choosing for those three keys — `.env` is
-not read by the test).
+1. Create a `.env` file (gitignored) in the repo root with three lines —
+   pick any values for the two that say "your choice":
+   - `POSTGRES_USER` — your choice, e.g. `specdbt`
+   - `POSTGRES_PASSWORD` — your choice
+   - `POSTGRES_DB` — your choice, e.g. `specdbt_test`
+2. Start it: `docker compose up -d postgres`
+3. Export the *same three values* under the names the test reads, plus two
+   fixed ones, then run the test:
+   ```bash
+   export SPECDBT_PG_USER=<your POSTGRES_USER value>
+   export SPECDBT_PG_SECRET=<your POSTGRES_PASSWORD value>
+   export SPECDBT_PG_DBNAME=<your POSTGRES_DB value>
+   export SPECDBT_PG_HOST=localhost SPECDBT_PG_PORT=5432 SPECDBT_TEST_POSTGRES=1
+   uv run pytest tests/test_dbt_adapter_postgres.py -v
+   ```
+   (Two names per value because `.env`/docker-compose need Postgres's own
+   env var names, while the test — like any Python code — just reads
+   `os.environ`, not `.env`, so the same values need exporting under the
+   names it actually looks for: `tests/conftest.py`.)
 
-To actually run the test, additionally export into your shell —
-`SPECDBT_TEST_POSTGRES=1`, `SPECDBT_PG_HOST`, `SPECDBT_PG_PORT`,
-`SPECDBT_PG_USER`, `SPECDBT_PG_DBNAME`, and `SPECDBT_PG_SECRET` — matching
-the `.env` values (`SPECDBT_PG_USER`/`SPECDBT_PG_DBNAME`/`SPECDBT_PG_SECRET`
-correspond to `POSTGRES_USER`/`POSTGRES_DB`/`POSTGRES_PASSWORD`
-respectively). The fixture in `tests/conftest.py` reads these directly from
-the process environment, not from `.env`. Then:
-
-```bash
-uv run pytest tests/test_dbt_adapter_postgres.py -v
-```
+**Databricks** (manual, needs your own workspace — no CI, no local
+default): see `docs/databricks-validation-checklist.md`.
 
 ## Contributing
 
