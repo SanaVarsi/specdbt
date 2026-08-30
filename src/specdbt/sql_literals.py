@@ -10,6 +10,12 @@ dbt.string_literal(dbt.escape_single_quotes(value)) -- NOT dbt.string_literal()
 alone, which performs no escaping at all (verified empirically:
 default__string_literal is a bare '{{ value }}'; a raw apostrophe broke the
 generated SQL in a spike before this fix).
+
+sql_literal_expr() and render_sql_literal() render the same text: the
+former with no outer `{{ }}`, for embedding as an argument inside another
+Jinja call (e.g. dbt.cast(<sql_literal_expr(...)>, dbt.type_string()) in
+fixture_sql.py) -- wrapping twice would produce invalid nested Jinja tags.
+The latter is for embedding directly in SQL text with no surrounding call.
 """
 
 from __future__ import annotations
@@ -17,16 +23,20 @@ from __future__ import annotations
 from specdbt.typing_utils import Scalar
 
 
-def render_sql_literal(value: Scalar | None) -> str:
+def sql_literal_expr(value: Scalar | None) -> str:
     if value is None:
         return "NULL"
     if isinstance(value, bool):
         return "TRUE" if value else "FALSE"
     if isinstance(value, (int, float)):
         return repr(value)
-    return (
-        f'{{{{ dbt.string_literal(dbt.escape_single_quotes("{_escape_for_jinja_arg(value)}")) }}}}'
-    )
+    return f'dbt.string_literal(dbt.escape_single_quotes("{_escape_for_jinja_arg(value)}"))'
+
+
+def render_sql_literal(value: Scalar | None) -> str:
+    if value is None or isinstance(value, bool) or isinstance(value, (int, float)):
+        return sql_literal_expr(value)
+    return f"{{{{ {sql_literal_expr(value)} }}}}"
 
 
 def _escape_for_jinja_arg(value: str) -> str:
