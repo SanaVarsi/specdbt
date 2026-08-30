@@ -1,0 +1,66 @@
+name: Release
+
+# Trusted publishing to PyPI (OIDC, no API token secret). This requires a
+# one-time setup that only happens once the repo exists on GitHub:
+#   1. On pypi.org, add a *pending* trusted publisher for project "specdbt"
+#      naming this owner/repo, workflow filename "release.yml", and
+#      environment "pypi" -- exactly, all three are load-bearing.
+#   2. Create a GitHub Environment named "pypi" on this repo.
+#   3. Tag a commit `vX.Y.Z` matching pyproject.toml's `version`, then
+#      publish a GitHub Release from that tag (or push the tag, if using
+#      the tag-push trigger below).
+on:
+  release:
+    types: [published]
+
+jobs:
+  # Reruns the same suite ci.yml runs on every push/PR -- a merged, green
+  # commit doesn't guarantee the exact tagged ref is still green, and this
+  # is the last gate before an irreversible PyPI upload.
+  test:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag matches project version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
+          if [ "$tag" != "$ver" ]; then
+            echo "release tag v$tag does not match pyproject.toml version $ver"
+            exit 1
+          fi
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          version: "0.11.25"
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # OIDC for trusted publishing -- no token secret needed
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
