@@ -101,8 +101,10 @@ def test_run_translates_a_failing_unit_test_with_ansi_stripped_diff(
     assert step_results[0].passed is True  # Given
     assert step_results[1].passed is True  # When
     assert step_results[2].passed is False  # Then
-    assert "\x1b[" not in step_results[2].error
-    assert "ZZZ" in step_results[2].error
+    error = step_results[2].error
+    assert error is not None
+    assert "\x1b[" not in error
+    assert "ZZZ" in error
 
 
 def test_run_tears_down_the_generated_yaml_file_on_pass_and_on_fail(
