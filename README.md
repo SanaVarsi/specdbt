@@ -18,16 +18,6 @@ uv run specdbt init features/       # scaffold an example .feature + its canned 
 uv run specdbt run features/        # parse, run, report
 ```
 
-## Try it against real models
-
-`examples/data_pulse/features/` has 5 scenarios written against real models
-from a live dbt project, including both branches of a `CASE WHEN` in an
-anomaly-detection model:
-
-```bash
-uv run specdbt run examples/data_pulse/features
-```
-
 ## How a scenario looks
 
 ```gherkin
@@ -54,10 +44,23 @@ plumbing before a real execution engine exists (Phase 1: `PolarsAdapter` /
 ## Development
 
 ```bash
-uv run pytest       # test suite
-uv run ruff check .
-uv run ruff format .
+uv sync                    # once, pulls in pre-commit
+uv run pre-commit install  # once, wires the git hook
+uv run pytest               # test suite
+uv run pre-commit run --all-files   # everything the hook checks, on demand
 ```
+
+`.pre-commit-config.yaml` runs `ruff` (lint + format), `ty` (type
+checking), `uv-lock` (lockfile/pyproject drift), `typos`,
+`validate-pyproject`, `gitleaks` (staged-diff secret scan), and a
+handful of hygiene checks (trailing whitespace, merge conflict markers,
+etc.) on every commit. CI runs the identical `pre-commit run
+--all-files` — same checks, same config, in case a commit skipped the
+local hook (`--no-verify` or a first-time clone without `pre-commit
+install`). The one exception is secret scanning: the pre-commit
+`gitleaks` hook only sees a commit's staged diff, which is always empty
+against a clean CI checkout, so CI runs a separate `gitleaks-action`
+job that scans the repository's full history instead.
 
 ## Roadmap
 

@@ -21,6 +21,7 @@ specdbt = "specdbt.cli:cli"
 dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.3",
+    "pre-commit>=4.0.0",
 ]
 
 [build-system]
