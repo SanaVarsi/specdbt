@@ -11,6 +11,16 @@ models:
           - unique
           - not_null
 
+  - name: order_surrogate_keys
+    description: A deterministic hash key per order, derived from order_id and status via dbt_utils.generate_surrogate_key
+
+    columns:
+      - name: order_key
+        description: Stable hash of order_id and status
+        tests:
+          - unique
+          - not_null
+
   - name: orders
     description: This table has basic information about orders, as well as some derived facts based on payments
 
