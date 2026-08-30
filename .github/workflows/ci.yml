@@ -6,6 +6,23 @@ on:
   pull_request:
 
 jobs:
+  gitleaks:
+    # Separate from `test`: the pre-commit gitleaks hook below only
+    # scans the staged diff (`--pre-commit --staged`), which is empty
+    # on `pre-commit run --all-files` against a clean CI checkout --
+    # it always passes trivially there regardless of what the repo
+    # actually contains. This job does the real full-history scan the
+    # pre-commit hook can't, via gitleaks-action, which needs full
+    # git history (fetch-depth: 0) to see past commits, not just HEAD.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   test:
     runs-on: ubuntu-latest
     services:

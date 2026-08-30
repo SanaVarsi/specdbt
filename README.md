@@ -121,12 +121,16 @@ uv run pre-commit run --all-files   # everything the hook checks, on demand
 ```
 
 `.pre-commit-config.yaml` runs `ruff` (lint + format), `ty` (type
-checking), `uv-lock` (lockfile/pyproject drift), `codespell`,
-`validate-pyproject`, `detect-secrets`, and a handful of hygiene checks
-(trailing whitespace, merge conflict markers, etc.) on every commit. CI
-runs the identical `pre-commit run --all-files` — same checks, same
-config, in case a commit skipped the local hook (`--no-verify` or a
-first-time clone without `pre-commit install`).
+checking), `uv-lock` (lockfile/pyproject drift), `typos`,
+`validate-pyproject`, `gitleaks` (staged-diff secret scan), and a
+handful of hygiene checks (trailing whitespace, merge conflict markers,
+etc.) on every commit. CI runs the identical `pre-commit run
+--all-files` — same checks, same config, in case a commit skipped the
+local hook (`--no-verify` or a first-time clone without `pre-commit
+install`). The one exception is secret scanning: the pre-commit
+`gitleaks` hook only sees a commit's staged diff, which is always empty
+against a clean CI checkout, so CI runs a separate `gitleaks-action`
+job that scans the repository's full history instead.
 
 The test suite includes an end-to-end test that runs the real example
 project through the real CLI (`tests/test_examples_jaffle_shop.py`) — a

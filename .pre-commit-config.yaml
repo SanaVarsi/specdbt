@@ -28,13 +28,13 @@ repos:
       - id: debug-statements
       - id: mixed-line-ending
 
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.3
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.50.0
     hooks:
-      - id: codespell
-        # docs/ holds prose specs/plans with technical shorthand codespell
-        # flags as typos; examples/ has generated dbt_packages/target
-        # dirs that are gitignored but present locally during a run.
+      - id: typos
+        # docs/ holds prose specs/plans with technical shorthand typos
+        # flags; examples/ has generated dbt_packages/target dirs that
+        # are gitignored but present locally during a run.
         exclude: ^(docs/|examples/.*/(dbt_packages|target|logs)/)
 
   - repo: https://github.com/abravalheri/validate-pyproject
@@ -42,9 +42,7 @@ repos:
     hooks:
       - id: validate-pyproject
 
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
     hooks:
-      - id: detect-secrets
-        args: ["--baseline", ".secrets.baseline"]
-        exclude: ^(uv\.lock|.*\.duckdb)$
+      - id: gitleaks
