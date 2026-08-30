@@ -56,6 +56,16 @@ def test_mixed_int_and_float_column_casts_to_float_type():
     assert "{{ dbt.cast(2.5, dbt.type_float()) }} as x" in sql
 
 
+def test_mixed_str_and_int_column_casts_to_string_type():
+    fixture = Fixture(name="a", rows=[{"x": 1}, {"x": "abc"}])
+    sql = render_fixture_ctas("s", fixture)
+    assert "{{ dbt.cast(1, dbt.type_string()) }} as x" in sql
+    assert (
+        '{{ dbt.cast(dbt.string_literal(dbt.escape_single_quotes("abc")), dbt.type_string()) }}'
+        " as x" in sql
+    )
+
+
 def test_boolean_column_casts_to_boolean_type():
     fixture = Fixture(name="a", rows=[{"x": True}])
     sql = render_fixture_ctas("s", fixture)
