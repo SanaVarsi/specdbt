@@ -23,8 +23,28 @@ just test    # full test suite
 Without `just`: `uv sync && uv run pre-commit install && uv run pytest`.
 
 Pre-commit runs ruff, ty, uv-lock, typos, gitleaks, and hygiene checks on
-every commit; CI runs the identical set. See the README's Development
-section for running the Postgres/Databricks adapter tests.
+every commit; CI runs the identical set (`pre-commit run --all-files`).
+Exception: `gitleaks` pre-commit only scans the staged diff, so CI also
+runs a separate `gitleaks-action` job over full history.
+
+`uv run pytest` alone only exercises DuckDB. Two more test files cover
+other adapters, both skipped unless you opt in:
+
+**Postgres** (CI-verified, runnable locally with Docker):
+```bash
+just postgres-up     # starts Postgres in Docker, writes .env if missing
+just test-postgres   # exports the right env vars, runs the test
+```
+Manual path: create a gitignored `.env` with `POSTGRES_USER`,
+`POSTGRES_PASSWORD`, `POSTGRES_DB`; `docker compose up -d postgres`; then
+export those same values as `SPECDBT_PG_USER`/`SPECDBT_PG_SECRET`/
+`SPECDBT_PG_DBNAME` plus `SPECDBT_PG_HOST=localhost SPECDBT_PG_PORT=5432
+SPECDBT_TEST_POSTGRES=1` and run `uv run pytest
+tests/test_dbt_adapter_postgres.py -v` (see `tests/conftest.py` for why
+the names differ).
+
+**Databricks** (manual, needs your own workspace, no CI): see
+`docs/knowledge/databricks-validation-checklist.md`.
 
 ## Pull requests
 
