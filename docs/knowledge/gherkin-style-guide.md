@@ -1,3 +1,10 @@
+---
+type: Style Guide
+title: specdbt Gherkin Style Guide
+description: Rules for writing declarative, business-behavior-named Gherkin scenarios in this project.
+tags: [style-guide, gherkin, testing]
+---
+
 # specdbt Gherkin Style Guide
 
 specdbt invents no Gherkin dialect. Every rule below is a constraint on how
