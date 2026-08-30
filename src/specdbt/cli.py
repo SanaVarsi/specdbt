@@ -99,7 +99,7 @@ def run(
     --engine dbt: real execution via DbtExecutionAdapter against --project-dir
     (required) and --profiles-dir (defaults to --project-dir).
     """
-    paths = sorted(target.glob("*.feature")) if target.is_dir() else [target]
+    paths = sorted(target.rglob("*.feature")) if target.is_dir() else [target]
     if not paths:
         raise click.ClickException(f"no .feature files found under {target}")
 
