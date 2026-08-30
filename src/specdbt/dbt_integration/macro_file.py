@@ -4,17 +4,28 @@ tear the ephemeral schema back down after (spec §5.1, §5.3).
 
 The macro/model call under test is never written here -- it runs directly
 via `dbt show --inline` (see adapters/dbt_adapter.py), not through this
-file. Every statement here goes through a `{% set sql %}...{% endset %}`
+file.
+
+Schema create/drop go through `adapter.create_schema(relation)` /
+`adapter.drop_schema(relation)` -- BaseAdapter methods that already dispatch
+to each adapter's correct DDL (verified present and `@available.parse_none`
+in dbt-core's dbt/adapters/base/impl.py) -- instead of hand-written SQL, so
+this works on any adapter, not just DuckDB (spec: macro-tier
+adapter-dispatch design, 2026-08-30).
+
+Fixture CTAS statements still go through a `{% set sql %}...{% endset %}`
 block before `run_query(sql)` -- not an inlined `run_query("...")` string --
-because fixture CTAS statements contain embedded `{{ dbt.string_literal(...) }}`
-Jinja calls (from sql_literals.render_sql_literal / fixture_sql), which
-themselves contain double quotes that would break an inlined double-quoted
-argument. This pattern is verified against a real dbt-duckdb target.
+because they contain embedded `{{ dbt.cast(...) }}` Jinja calls (from
+fixture_sql.py), which themselves contain double quotes that would break an
+inlined double-quoted argument. This pattern is verified against a real
+dbt-duckdb target.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+
+from specdbt.dbt_integration.relation_expr import relation_expr
 
 
 def setup_macro_name(run_id: str) -> str:
@@ -25,21 +36,25 @@ def teardown_macro_name(run_id: str) -> str:
     return f"_specdbt_{run_id}_teardown"
 
 
-def render_macro_file(run_id: str, schema: str, fixture_ctas_statements: list[str]) -> str:
-    statements = [f"create schema if not exists {schema}", *fixture_ctas_statements]
-    setup_blocks = "\n".join(
+def render_macro_file(
+    run_id: str,
+    schema: str,
+    fixture_ctas_statements: list[str],
+    *,
+    database: str | None = None,
+) -> str:
+    schema_relation = relation_expr(schema=schema, database=database)
+    fixture_blocks = "\n".join(
         f"  {{% set sql %}}\n  {statement}\n  {{% endset %}}\n  {{% do run_query(sql) %}}"
-        for statement in statements
+        for statement in fixture_ctas_statements
     )
     return (
         f"{{% macro {setup_macro_name(run_id)}() %}}\n"
-        f"{setup_blocks}\n"
+        f"  {{% do adapter.create_schema({schema_relation}) %}}\n"
+        f"{fixture_blocks}\n"
         f"{{% endmacro %}}\n\n"
         f"{{% macro {teardown_macro_name(run_id)}() %}}\n"
-        f"  {{% set sql %}}\n"
-        f"  drop schema if exists {schema} cascade\n"
-        f"  {{% endset %}}\n"
-        f"  {{% do run_query(sql) %}}\n"
+        f"  {{% do adapter.drop_schema({schema_relation}) %}}\n"
         f"{{% endmacro %}}\n"
     )
 

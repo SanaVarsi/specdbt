@@ -45,3 +45,13 @@ def test_substitutes_double_quoted_ref():
     assert result == (
         "select * from {{ api.Relation.create(schema='specdbt_abc', identifier='orders') }}"
     )
+
+
+def test_substitutes_ref_with_a_database_qualified_relation_when_database_is_given():
+    result = substitute_fixture_refs(
+        "select * from {{ ref('orders') }}", "specdbt_abc", {"orders"}, database="my_catalog"
+    )
+    assert result == (
+        "select * from {{ api.Relation.create(database='my_catalog', schema='specdbt_abc', "
+        "identifier='orders') }}"
+    )
