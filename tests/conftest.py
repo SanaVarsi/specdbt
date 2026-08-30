@@ -114,7 +114,6 @@ def scratch_dbt_project_postgres(tmp_path: Path) -> Path:
         'profile: scratch\nmodel-paths: ["models"]\n'
     )
     dbname = os.environ.get("SPECDBT_PG_DBNAME", "specdbt_test")
-    connection_secret_field = "pass" + "word"  # dbt-postgres' profile schema field name
     target = {
         "type": "postgres",
         "host": os.environ.get("SPECDBT_PG_HOST", "localhost"),
@@ -124,7 +123,7 @@ def scratch_dbt_project_postgres(tmp_path: Path) -> Path:
         "database": dbname,
         "schema": "main",
         "threads": 1,
-        connection_secret_field: os.environ["SPECDBT_PG_SECRET"],
+        "password": os.environ["SPECDBT_PG_SECRET"],
     }
     (project_dir / "profiles" / "profiles.yml").write_text(
         yaml.safe_dump({"scratch": {"target": "dev", "outputs": {"dev": target}}})

@@ -59,7 +59,7 @@ def test_run_macro_tears_down_schema_on_postgres(scratch_dbt_project_postgres: P
         "port": os.environ.get("SPECDBT_PG_PORT", "5432"),
         "user": os.environ.get("SPECDBT_PG_USER", "specdbt"),
         "dbname": os.environ.get("SPECDBT_PG_DBNAME", "specdbt_test"),
-        "pass" + "word": os.environ["SPECDBT_PG_SECRET"],
+        "password": os.environ["SPECDBT_PG_SECRET"],
     }
     conn = psycopg2.connect(**connection_kwargs)
     try:
