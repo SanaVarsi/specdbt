@@ -15,6 +15,29 @@ SAMPLE = """Feature: Weather station deduplication
     And the row for station_id "BER-001" should have source "brightsky"
 """
 
+TAGGED_SAMPLE = """Feature: Tagged
+
+  @unit @incremental_model
+  Scenario: Has tags
+    Given the following rows in "a":
+      | c |
+      | 1 |
+    When the "m" model runs
+    Then the "m" should produce the following rows:
+      | c |
+      | 1 |
+
+
+  Scenario: Has no tags
+    Given the following rows in "a":
+      | c |
+      | 1 |
+    When the "m" model runs
+    Then the "m" should produce the following rows:
+      | c |
+      | 1 |
+"""
+
 
 def test_parses_feature_and_scenario_names():
     feature = parse_feature_text(SAMPLE)
@@ -66,3 +89,13 @@ def test_parse_feature_file_reads_from_disk(tmp_path: Path):
     feature_file.write_text(SAMPLE)
     feature = parse_feature_file(feature_file)
     assert feature.name == "Weather station deduplication"
+
+
+def test_scenario_tags_are_captured_with_leading_at_sign():
+    feature = parse_feature_text(TAGGED_SAMPLE)
+    assert feature.scenarios[0].tags == ["@unit", "@incremental_model"]
+
+
+def test_scenario_with_no_tags_has_an_empty_tags_list():
+    feature = parse_feature_text(TAGGED_SAMPLE)
+    assert feature.scenarios[1].tags == []

@@ -126,3 +126,33 @@ def test_produces_rows_failure_message_shows_expected_and_actual_tables():
     assert "expected" in message
     assert "actual" in message
     assert "ZZZ" in message
+
+
+def test_produces_rows_ignores_row_order():
+    result = ExecutionResult.of(rows=[{"id": 2, "name": "b"}, {"id": 1, "name": "a"}])
+    ctx = ThenContext(results={"m": result}, last_model="m")
+    table = [["id", "name"], ["1", "a"], ["2", "b"]]
+    evaluate_then_step('the "m" should produce the following rows:', ctx, table=table)
+
+
+def test_produces_rows_ignores_unlisted_actual_columns():
+    result = ExecutionResult.of(rows=[{"id": 1, "name": "a", "extra": 999}])
+    ctx = ThenContext(results={"m": result}, last_model="m")
+    table = [["id", "name"], ["1", "a"]]
+    evaluate_then_step('the "m" should produce the following rows:', ctx, table=table)
+
+
+def test_produces_rows_is_sensitive_to_duplicate_row_counts():
+    result = ExecutionResult.of(rows=[{"id": 1, "name": "a"}, {"id": 1, "name": "a"}])
+    ctx = ThenContext(results={"m": result}, last_model="m")
+    table = [["id", "name"], ["1", "a"]]  # only one copy expected, actual has two
+    with pytest.raises(AssertionFailure):
+        evaluate_then_step('the "m" should produce the following rows:', ctx, table=table)
+
+
+def test_produces_rows_still_fails_when_a_value_genuinely_differs():
+    result = ExecutionResult.of(rows=[{"id": 1, "name": "a"}])
+    ctx = ThenContext(results={"m": result}, last_model="m")
+    table = [["id", "name"], ["1", "ZZZ"]]
+    with pytest.raises(AssertionFailure):
+        evaluate_then_step('the "m" should produce the following rows:', ctx, table=table)
