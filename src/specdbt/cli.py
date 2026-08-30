@@ -11,6 +11,8 @@ import click
 from specdbt.adapters.base import ExecutionResult
 from specdbt.adapters.dbt_adapter import DbtExecutionAdapter
 from specdbt.adapters.fake_adapter import FakeAdapter
+from specdbt.native_unit_tests.compiler import CompilerRegistry
+from specdbt.native_unit_tests.model_unit_test_compiler import ModelUnitTestCompiler
 from specdbt.reporter import render_feature_report, render_summary
 from specdbt.runner import run_feature_file
 
@@ -102,6 +104,7 @@ def run(
         raise click.ClickException(f"no .feature files found under {target}")
 
     dbt_adapter: DbtExecutionAdapter | None = None
+    compiler_registry: CompilerRegistry | None = None
     if engine == "dbt":
         if project_dir is None:
             raise click.ClickException("--project-dir is required with --engine dbt")
@@ -111,6 +114,16 @@ def run(
             target=dbt_target,
             allow_any_schema=allow_any_schema,
             keep_schema=keep_schema,
+        )
+        compiler_registry = CompilerRegistry()
+        compiler_registry.register(
+            "model",
+            ModelUnitTestCompiler(
+                project_dir=project_dir,
+                profiles_dir=profiles_dir or project_dir,
+                target=dbt_target,
+                allow_any_schema=allow_any_schema,
+            ),
         )
 
     reports = []
@@ -123,7 +136,7 @@ def run(
             if canned_path.exists():
                 for model_name, result in _load_canned_results(canned_path).items():
                     adapter.register(model_name, result)
-        reports.append(run_feature_file(path, adapter))
+        reports.append(run_feature_file(path, adapter, compiler_registry))
 
     for report in reports:
         click.echo(render_feature_report(report))
