@@ -25,10 +25,11 @@ but not against a real Databricks workspace. When you have access to one
 4. Confirm the scenario passes and that no tables/schemas are left behind
    in the configured catalog afterward (check via the Databricks UI or
    `SHOW SCHEMAS IN <catalog> LIKE 'specdbt_%'`).
-5. Optionally, run the `jaffle_shop`/`dbt_utils_macros` example projects'
-   macro-tier scenarios (`examples/*/features/*.feature`) against the same
-   target, by adding a `databricks` output to their `profiles.yml` and
-   passing `--target databricks` to the specdbt CLI.
+5. Optionally, run the `jaffle_shop` example project's scenarios
+   (`examples/jaffle_shop/features/*.feature` — both unit-tier models and
+   integration-tier macros) against the same target, by adding a
+   `databricks` output to its `profiles.yml` and passing `--target
+   databricks` to the specdbt CLI.
 6. Report back which relation shape (2- or 3-part) `dbt-databricks`
    produced for the catalog-qualified case, same as Task 10 did for
    Postgres, so the design spec's open item can be closed.

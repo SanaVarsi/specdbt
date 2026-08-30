@@ -34,7 +34,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Install dbt_utils for the example project
-        working-directory: examples/dbt_utils_macros
+        working-directory: examples/jaffle_shop
         run: uv run --project ../.. dbt deps --profiles-dir profiles
 
       - name: Lint

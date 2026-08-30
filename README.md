@@ -67,27 +67,21 @@ a working example.
 ## Run it against a real dbt project
 
 ```bash
+cd examples/jaffle_shop && uv run dbt deps --profiles-dir profiles && cd ../..
 uv run specdbt run examples/jaffle_shop/features \
   --engine dbt \
   --project-dir examples/jaffle_shop \
   --profiles-dir examples/jaffle_shop/profiles
 ```
 
-This runs `stg_customers`, `customers`, and `order_history` (including
-both branches of an `is_incremental()` model) against a real DuckDB
-target built from `dbt-labs/jaffle-shop-classic`.
-
-`examples/dbt_utils_macros/` shows the same thing for macro scenarios —
-`dbt_utils.generate_surrogate_key` and `dbt_utils.star` run against real
-fixtures:
-
-```bash
-cd examples/dbt_utils_macros && uv run dbt deps --profiles-dir profiles
-uv run specdbt run examples/dbt_utils_macros/features \
-  --engine dbt \
-  --project-dir examples/dbt_utils_macros \
-  --profiles-dir examples/dbt_utils_macros/profiles
-```
+This runs models (`stg_customers`, `customers`, `order_history` — including
+both branches of an `is_incremental()` model, and `order_surrogate_keys`,
+which consumes a `dbt_utils` macro inside a model) at the unit tier, and
+`dbt_utils.generate_surrogate_key`/`dbt_utils.star` macros standalone at
+the integration tier, all against a real DuckDB target built from
+`dbt-labs/jaffle-shop-classic` plus `dbt-labs/dbt_utils`. One project
+covers both, since tier is a per-scenario default (model → unit, macro →
+integration), not a per-project setting.
 
 `--engine fake` (the default) skips dbt entirely: each `.feature` file may
 have a co-located `.canned.py` exposing `CANNED_RESULTS`, useful for
@@ -118,10 +112,10 @@ uv run ruff check .
 uv run ruff format .
 ```
 
-The test suite includes end-to-end tests that run the real examples
-through the real CLI (`tests/test_examples_jaffle_shop.py`,
-`tests/test_examples_dbt_utils_macros.py`) — a green suite means the
-examples above actually work, not just that unit tests pass.
+The test suite includes an end-to-end test that runs the real example
+project through the real CLI (`tests/test_examples_jaffle_shop.py`) — a
+green suite means the examples above actually work, not just that unit
+tests pass.
 
 ### Testing against other adapters
 
