@@ -55,6 +55,12 @@ class ModelUnitTestCompiler(NativeTestCompiler):
 
     def run(self, scenario: Scenario) -> list[StepResult]:
         compiled = compile_scenario(scenario)
+        # compile_scenario() guarantees a When and a Then step for any
+        # scenario it accepts -- the dataclass types them as optional
+        # because CompiledUnitTest is built incrementally, but by the time
+        # it's returned both are always set.
+        assert compiled.when_step is not None
+        assert compiled.then_step is not None
         self._ensure_project_prebuilt()
 
         run_id = uuid.uuid4().hex
