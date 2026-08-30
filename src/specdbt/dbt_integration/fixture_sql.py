@@ -26,11 +26,13 @@ from specdbt.sql_literals import sql_literal_expr
 def _dbt_type_macro(values: list) -> str:
     if any(isinstance(v, float) for v in values):
         return "dbt.type_float()"
+    if any(isinstance(v, str) for v in values):
+        return "dbt.type_string()"
     if any(isinstance(v, int) and not isinstance(v, bool) for v in values):
         return "dbt.type_bigint()"
     if any(isinstance(v, bool) for v in values):
         return "dbt.type_boolean()"
-    return "dbt.type_string()"  # any str present, or an all-NULL column
+    return "dbt.type_string()"  # all-NULL column
 
 
 def render_fixture_ctas(schema: str, fixture: Fixture, *, database: str | None = None) -> str:

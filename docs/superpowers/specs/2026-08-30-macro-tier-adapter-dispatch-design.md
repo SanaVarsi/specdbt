@@ -193,6 +193,17 @@ another. This becomes an explicit cross-tier test (item 4 below).
    and runnable in CI today. Confirm at implementation time whether `dbt-postgres` renders
    2- or 3-part relations by default and record the answer in the spec/tests either way.
 
+   **Resolved:** `dbt-postgres` renders a catalog-qualified relation as a full 3-part quoted
+   identifier — `PostgresRelation.create(database=..., schema=..., identifier=...).render()`
+   produces `"specdbt_test"."specdbt_abc"."orders"`;
+   `.without_identifier().include(database=False).render()` produces the 2-part
+   `"specdbt_abc"`. This confirms the mechanism gap-3 needed and
+   closes this open question. Caveat: whether 3-part naming actually *executes* correctly against
+   a real Postgres server is still unverified — Postgres itself restricts a 3-part reference's
+   database segment to equal the current connection's database, so this remains pending a live
+   Postgres run (not available in this environment; see the fixture note in `tests/conftest.py`'s
+   `scratch_dbt_project_postgres` and the local-dev docs in README.md).
+
 7. **Databricks — user-driven manual validation, not CI-gated**: no Databricks credentials
    exist in this environment; the user intends to get a Databricks Community Edition (or trial)
    workspace to validate separately. To make that validation cheap when it happens: keep the

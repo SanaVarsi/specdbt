@@ -8,7 +8,9 @@ never disagree about which catalog/schema/identifier they're addressing
 from __future__ import annotations
 
 
-def relation_expr(*, schema: str, identifier: str | None = None, database: str | None = None) -> str:
+def relation_expr(
+    *, schema: str, identifier: str | None = None, database: str | None = None
+) -> str:
     parts = []
     if database is not None:
         parts.append(f"database='{database}'")

@@ -100,10 +100,14 @@ def scratch_dbt_project_postgres(tmp_path: Path) -> Path:
     """Mirrors scratch_dbt_project, but targets a real local Postgres via
     dbt-postgres -- the CI-gated second adapter this plan's own
     verification runs against (spec: macro-tier adapter-dispatch design,
-    2026-08-30). `database` is set to the same database the connection
-    uses (SPECDBT_PG_DBNAME) since Postgres, unlike Databricks/Snowflake,
-    can't address a second catalog cross-database -- this still exercises
-    the full catalog-threading pipeline end-to-end, just not cross-catalog
+    2026-08-30). Only `dbname` is set (no redundant `database` key --
+    dbt-postgres's PostgresCredentials._ALIASES maps both to the same
+    canonical field, and setting both raises DuplicateAliasError).
+    resolve_target_catalog() falls back catalog -> database -> dbname, so
+    the catalog still resolves to the same database the connection uses,
+    since Postgres, unlike Databricks/Snowflake, can't address a second
+    catalog cross-database -- this still exercises the full
+    catalog-threading pipeline end-to-end, just not cross-catalog
     addressing itself (that's Databricks-specific, see
     test_dbt_adapter_databricks.py)."""
     project_dir = tmp_path / "scratch_project_pg"
@@ -120,7 +124,6 @@ def scratch_dbt_project_postgres(tmp_path: Path) -> Path:
         "port": int(os.environ.get("SPECDBT_PG_PORT", "5432")),
         "user": os.environ.get("SPECDBT_PG_USER", "specdbt"),
         "dbname": dbname,
-        "database": dbname,
         "schema": "main",
         "threads": 1,
         "password": os.environ["SPECDBT_PG_SECRET"],

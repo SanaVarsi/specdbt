@@ -123,6 +123,32 @@ through the real CLI (`tests/test_examples_jaffle_shop.py`,
 `tests/test_examples_dbt_utils_macros.py`) — a green suite means the
 examples above actually work, not just that unit tests pass.
 
+### Testing against Postgres
+
+`tests/test_dbt_adapter_postgres.py` exercises the macro tier's Postgres
+adapter path and is skipped by default. A local Postgres is available via:
+
+```bash
+docker compose up -d postgres
+```
+
+`docker-compose.yml` reads `POSTGRES_USER`, `POSTGRES_PASSWORD`, and
+`POSTGRES_DB` from a local, gitignored `.env` file for the container itself
+(create one with values of your choosing for those three keys — `.env` is
+not read by the test).
+
+To actually run the test, additionally export into your shell —
+`SPECDBT_TEST_POSTGRES=1`, `SPECDBT_PG_HOST`, `SPECDBT_PG_PORT`,
+`SPECDBT_PG_USER`, `SPECDBT_PG_DBNAME`, and `SPECDBT_PG_SECRET` — matching
+the `.env` values (`SPECDBT_PG_USER`/`SPECDBT_PG_DBNAME`/`SPECDBT_PG_SECRET`
+correspond to `POSTGRES_USER`/`POSTGRES_DB`/`POSTGRES_PASSWORD`
+respectively). The fixture in `tests/conftest.py` reads these directly from
+the process environment, not from `.env`. Then:
+
+```bash
+uv run pytest tests/test_dbt_adapter_postgres.py -v
+```
+
 ## Contributing
 
 Issues, ideas, and PRs are welcome. The `ExecutionAdapter` interface
