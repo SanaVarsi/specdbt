@@ -12,6 +12,7 @@ build/
 .serena/
 .superpowers/
 .claude/settings.local.json
+local_work/
 
 # dbt example projects (examples/**): real dbt run artifacts, never source
 examples/**/dbt_packages/

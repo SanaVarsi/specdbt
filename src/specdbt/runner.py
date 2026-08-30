@@ -1,7 +1,6 @@
 """Wires parser -> fixtures -> adapter -> assertions -> reporter into one
-pipeline (spec: docs/superpowers/specs/2026-08-23-specdbt-phase0-design.md,
-2026-08-23-specdbt-phase1-design-v2.md §3/§10). Tier resolution (spec §3)
-picks, per scenario, between two entirely different control paths: the
+pipeline. Tier resolution (spec §3) picks, per scenario, between two
+entirely different control paths: the
 integration tier below executes step-by-step, threading results forward as
 each step runs; the unit tier hands the WHOLE scenario to a
 NativeTestCompiler, since dbt's own unit-test runner does the given/when/

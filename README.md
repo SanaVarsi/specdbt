@@ -127,10 +127,11 @@ tests pass.
 ### Testing against other adapters
 
 The default `uv run pytest` above only exercises DuckDB. The macro tier's
-adapter-dispatch code (spec:
-`docs/superpowers/specs/2026-08-30-macro-tier-adapter-dispatch-design.md`)
-has two more adapter-specific test files, both skipped unless you opt in —
-neither is required for the default suite to pass.
+adapter-dispatch code routes schema DDL, fixture CTAS, and ref/source
+substitution through dbt-core's own adapter-dispatch primitives so the
+same scenarios run unmodified against other engines. It has two more
+adapter-specific test files, both skipped unless you opt in — neither is
+required for the default suite to pass.
 
 **Postgres** (runnable locally, and CI-verified):
 
