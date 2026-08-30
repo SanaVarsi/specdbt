@@ -23,6 +23,7 @@ from specdbt.dbt_integration.macro_file import (
     write_macro_file,
 )
 from specdbt.dbt_integration.ref_substitution import substitute_fixture_refs
+from specdbt.dbt_integration.target_catalog import resolve_target_catalog
 from specdbt.fixtures import Fixture
 
 
@@ -64,12 +65,17 @@ class DbtExecutionAdapter(ExecutionAdapter):
         )
 
     def run_macro(self, macro_call: str, fixtures: list[Fixture]) -> ExecutionResult:
+        database = resolve_target_catalog(self._project_dir, self._profiles_dir, self._target)
         run_id = uuid.uuid4().hex
         schema = f"specdbt_{run_id}"
         fixture_names = {fixture.name for fixture in fixtures}
-        substituted_call = substitute_fixture_refs(macro_call, schema, fixture_names)
-        fixture_ctas = [render_fixture_ctas(schema, fixture) for fixture in fixtures]
-        macro_text = render_macro_file(run_id, schema, fixture_ctas)
+        substituted_call = substitute_fixture_refs(
+            macro_call, schema, fixture_names, database=database
+        )
+        fixture_ctas = [
+            render_fixture_ctas(schema, fixture, database=database) for fixture in fixtures
+        ]
+        macro_text = render_macro_file(run_id, schema, fixture_ctas, database=database)
         macro_path = write_macro_file(self._project_dir, run_id, macro_text)
 
         try:
