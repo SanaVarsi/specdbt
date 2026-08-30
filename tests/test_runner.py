@@ -49,7 +49,9 @@ def test_run_feature_text_stops_scenario_at_first_failed_step():
     assert scenario.passed is False
     assert len(scenario.steps) == 3  # Given, When, Then(fails) -- the And is never reached
     assert scenario.steps[-1].passed is False
-    assert "expected" in scenario.steps[-1].error
+    error = scenario.steps[-1].error
+    assert error is not None
+    assert "expected" in error
 
 
 UNREGISTERED_MODEL_SOURCE = """Feature: F
