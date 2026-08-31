@@ -1,11 +1,14 @@
 name: Prepare Release
 
 # One-click release: Actions tab -> this workflow -> Run workflow -> pick a
-# bump (or type an exact version) -> it tags + opens the GitHub Release.
-# That publish event triggers release.yml, which reruns CI, builds, and
-# pauses on the "pypi" environment for manual approval before anything
-# reaches PyPI -- this workflow only ever gets you to that approval gate,
-# never past it.
+# bump (or type an exact version) -> it tags, opens the GitHub Release,
+# then calls release.yml directly in this same run (rather than relying
+# on the release-published event -- a release created with the default
+# GITHUB_TOKEN can't trigger other workflows, by GitHub's own anti-loop
+# design, so the event alone would never fire release.yml). release.yml
+# reruns CI, builds, and pauses on the "pypi" environment for manual
+# approval before anything reaches PyPI -- this workflow only ever gets
+# you to that approval gate, never past it.
 on:
   workflow_dispatch:
     inputs:
@@ -27,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # to create the tag + GitHub Release
+    outputs:
+      version: ${{ steps.next.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,3 +74,18 @@ jobs:
             --title "v$NEXT" \
             --generate-notes \
             --repo "${{ github.repository }}"
+
+  release:
+    needs: tag-and-release
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.tag-and-release.outputs.version }}
+    secrets: inherit
+    # Must cover everything release.yml's own jobs (and ci.yml, nested
+    # inside it) will ask for -- a called workflow can't exceed what its
+    # caller grants, at every level of the chain.
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
+      attestations: write

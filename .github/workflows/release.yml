@@ -6,12 +6,23 @@ name: Release
 #      naming this owner/repo, workflow filename "release.yml", and
 #      environment "pypi" -- exactly, all three are load-bearing.
 #   2. Create a GitHub Environment named "pypi" on this repo.
-#   3. Tag a commit `vX.Y.Z` and publish a GitHub Release from it (the
-#      "Prepare Release" workflow does both) -- pyproject.toml's version
-#      is derived from this tag via hatch-vcs, nothing to keep in sync.
+#   3. Trigger the "Prepare Release" workflow (Actions tab -> Run
+#      workflow) -- it tags, opens the GitHub Release, and calls this
+#      workflow directly in the same run. A release created by hand
+#      through the GitHub UI also triggers this via `release: published`
+#      as a fallback, but the default GITHUB_TOKEN a workflow uses to
+#      create a release can't fire that event itself (anti-loop
+#      protection), which is why Prepare Release calls in rather than
+#      relying on the event.
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      version:
+        description: "vX.Y.Z's X.Y.Z, when called directly instead of via a release event"
+        required: false
+        type: string
 
 # Least-privilege default; jobs escalate only what they individually need.
 permissions:
@@ -37,10 +48,14 @@ jobs:
       contents: read
     steps:
       # Full history + tags -- hatch-vcs derives the package version from
-      # the tag that triggered this release; a shallow checkout can't see it.
+      # the tag that triggered this release; a shallow checkout can't see
+      # it. Pin explicitly to the tag when called directly (inputs.version
+      # set) so a commit landing on main between tagging and this checkout
+      # can't slip in ahead of the release it's building.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ inputs.version && format('v{0}', inputs.version) || github.ref }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -56,8 +71,13 @@ jobs:
         # the tag wasn't actually visible to the checkout above) before
         # it reaches PyPI -- the one thing the old hand-written version
         # field let us check directly. sdist filename is specdbt-X.Y.Z.tar.gz.
+        # "inputs.version" is set when Prepare Release calls this workflow
+        # directly; GITHUB_REF_NAME is a real "vX.Y.Z" tag only when this
+        # ran from an actual release event instead.
+        env:
+          CALLED_VERSION: ${{ inputs.version }}
         run: |
-          tag="${GITHUB_REF_NAME#v}"
+          tag="${CALLED_VERSION:-${GITHUB_REF_NAME#v}}"
           built="$(basename dist/specdbt-*.tar.gz .tar.gz | sed 's/^specdbt-//')"
           if [ "$tag" != "$built" ]; then
             echo "release tag v$tag does not match built version $built"
