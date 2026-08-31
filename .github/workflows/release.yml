@@ -13,6 +13,10 @@ on:
   release:
     types: [published]
 
+# Least-privilege default; jobs escalate only what they individually need.
+permissions:
+  contents: read
+
 jobs:
   # Reruns the same suite ci.yml runs on every push/PR -- a merged, green
   # commit doesn't guarantee the exact tagged ref is still green, and this
@@ -24,8 +28,10 @@ jobs:
   build:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Tag matches project version
         run: |
@@ -37,7 +43,7 @@ jobs:
           fi
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
         with:
           enable-cache: true
           version: "0.11.25"
@@ -45,7 +51,7 @@ jobs:
       - name: Build sdist + wheel
         run: uv build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dist
           path: dist/
@@ -57,10 +63,11 @@ jobs:
     permissions:
       id-token: write # OIDC for trusted publishing -- no token secret needed
       contents: read
+      attestations: write # PEP 740 build provenance attestation
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: dist
           path: dist/
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
