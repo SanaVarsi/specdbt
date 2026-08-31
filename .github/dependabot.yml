@@ -6,6 +6,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Actions run inside CI with ambient trust (secrets, environment
+    # access) -- major bumps get a deliberate look, not auto-approval.
+    # Security-advisory PRs bypass this and land regardless.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # uv.lock + pyproject.toml.
   - package-ecosystem: "uv"
