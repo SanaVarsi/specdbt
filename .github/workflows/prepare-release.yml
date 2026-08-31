@@ -61,6 +61,8 @@ jobs:
           NEXT: ${{ steps.next.outputs.version }}
         run: |
           set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "v$NEXT" -m "specdbt v$NEXT"
           git push origin "v$NEXT"
           gh release create "v$NEXT" \
