@@ -13,6 +13,10 @@ resolution-markers = [
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
+[options]
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer-span = "P3D"
+
 [[package]]
 name = "agate"
 version = "1.9.1"
@@ -1982,7 +1986,6 @@ wheels = [
 
 [[package]]
 name = "specdbt"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -2026,7 +2029,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "sqlparse", specifier = ">=0.6.0" },
 ]
-provides-extras = ["postgres", "databricks", "snowflake"]
+provides-extras = ["databricks", "postgres", "snowflake"]
 
 [package.metadata.requires-dev]
 dev = [
