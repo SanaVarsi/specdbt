@@ -1,4 +1,4 @@
-"""Then-step assertion library (Phase 0 subset — see spec §4)."""
+"""Then-step assertion library."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def evaluate_then_step(text: str, ctx: ThenContext, table: list[list[str]] | Non
     """Raise AssertionFailure if the expectation doesn't hold, or
     UnrecognizedStepError if the text matches no known pattern. None on
     success. `table` is the step's data table, if it has one -- only the
-    row-table form (the canonical Then, spec §6) uses it."""
+    row-table form (the canonical Then) uses it."""
     if (m := PRODUCES_ROWS_RE.match(text)) is not None:
         name = m.group(1)
         if not table:

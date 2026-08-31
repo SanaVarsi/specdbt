@@ -1,8 +1,8 @@
 """Compiles a Gherkin Scenario (Given fixtures, incremental tag/step
 wording, canonical row-table Then) into the pieces render_unit_test_yaml
-needs (spec §4, §4.1, §6). Pure -- no dbt invocation, no file I/O; also
-carries the original Step objects so the caller can echo real step text
-back into StepResults, matching how the integration tier's report reads.
+needs. Pure -- no dbt invocation, no file I/O; also carries the original
+Step objects so the caller can echo real step text back into StepResults,
+matching how the integration tier's report reads.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ TAG_INCREMENTAL_MODEL = "@incremental_model"
 
 class UnitTestCompileError(ValueError):
     """Raised when a scenario resolved to the unit tier can't be compiled to
-    a unit_tests: YAML entry -- names the fix, per spec §6."""
+    a unit_tests: YAML entry -- names the fix."""
 
 
 @dataclass
@@ -85,7 +85,7 @@ def compile_scenario(scenario: Scenario) -> CompiledUnitTest:
             if then_match is None:
                 raise UnitTestCompileError(
                     "@unit scenario's Then step must be the canonical "
-                    '"...should produce the following rows:" form (spec §6) -- '
+                    '"...should produce the following rows:" form -- '
                     f"prose assertions have nothing to translate to in the "
                     f"unit tier. Got: {step.text!r}"
                 )
@@ -99,11 +99,9 @@ def compile_scenario(scenario: Scenario) -> CompiledUnitTest:
     if then_step is None or expect_rows is None:
         raise UnitTestCompileError(
             f'@unit scenario "{scenario.name}" has no row-table Then step -- '
-            "add one, or tag @integration explicitly (spec §6)"
+            "add one, or tag @integration explicitly"
         )
-    # Compared post-loop (not inline in the Outcome branch) so the check is
-    # independent of Given/When/Then step order -- both model_name and
-    # then_model are guaranteed non-None by the two checks above.
+    # Checked post-loop, not inline, so it's independent of step order.
     if then_model != model_name:
         raise UnitTestCompileError(
             f"@unit scenario's When names model {model_name!r} but Then names "

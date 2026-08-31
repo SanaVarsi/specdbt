@@ -1,7 +1,7 @@
 """Shared pytest fixtures. `scratch_dbt_project` is used by every test that
-needs to run real dbt (spec §5.1's mechanism) against a minimal, disposable
-DuckDB-backed project -- no network, no dbt_utils, just enough scaffolding
-for dbtRunner to work."""
+needs to run real dbt against a minimal, disposable DuckDB-backed project
+-- no network, no dbt_utils, just enough scaffolding for dbtRunner to
+work."""
 
 import os
 from pathlib import Path
@@ -36,9 +36,9 @@ def scratch_dbt_project(tmp_path: Path) -> Path:
 def scratch_dbt_project_with_upstream(tmp_path: Path) -> Path:
     """Unlike scratch_dbt_project's single placeholder model, this one has
     a real ref() edge (upstream_model -> downstream_model) -- unit testing
-    needs something to override, and something to build first (spec §4.1
-    finding 6: the given input must already be a real, built relation for
-    dbt to introspect its column types)."""
+    needs something to override, and something to build first: the given
+    input must already be a real, built relation for dbt to introspect its
+    column types."""
     project_dir = tmp_path / "scratch_project_upstream"
     (project_dir / "models").mkdir(parents=True)
     (project_dir / "profiles").mkdir()

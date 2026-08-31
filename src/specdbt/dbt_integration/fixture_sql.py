@@ -1,5 +1,5 @@
 """Render a Fixture as a CREATE TABLE ... AS SELECT ... UNION ALL statement,
-for real execution against a dbt target (spec §5.1).
+for real execution against a dbt target.
 
 Column types are Python-value-derived (the only information available --
 many fixture names aren't real manifest nodes, so
