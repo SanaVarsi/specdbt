@@ -31,14 +31,12 @@ def test_coerces_explicit_null_literal_to_none():
 
 
 def test_preserves_leading_zeros_as_strings():
-    # "007" is an identifier-shaped value, not the integer 7 -- real numbers
-    # aren't written with leading zeros, so this must not silently corrupt IDs.
+    # "007" is an identifier, not the integer 7 -- must not corrupt IDs.
     assert coerce_scalar("007") == "007"
 
 
 def test_does_not_coerce_scientific_notation():
-    # avoid the "1e5" -> 100000.0 surprise for values that were never meant
-    # to be read as numbers at all.
+    # avoid "1e5" -> 100000.0 for values not meant to be numbers.
     assert coerce_scalar("1e5") == "1e5"
 
 

@@ -1,5 +1,5 @@
-"""Unit-tier orchestration interface (spec §3, §10) -- delegates to
-whatever native fixture mechanism dbt ships for a given resource kind.
+"""Unit-tier orchestration interface -- delegates to whatever native
+fixture mechanism dbt ships for a given resource kind.
 Deliberately not an ExecutionAdapter method: delegating-to-dbt's-own-runner
 (this) and driving-real-execution-directly (ExecutionAdapter.run_macro) are
 different enough operations that overloading one interface would blur what
@@ -30,8 +30,8 @@ class NativeTestCompiler(ABC):
 
 class UnitTierNotSupportedError(NotImplementedError):
     """Raised when a scenario resolves to @unit for a resource kind with no
-    registered NativeTestCompiler (spec §3, §5.4) -- today, macros: dbt has
-    no native mechanism yet (dbt-core#10547, open)."""
+    registered NativeTestCompiler -- today, macros: dbt has no native
+    mechanism yet (dbt-core#10547, open)."""
 
 
 class CompilerRegistry:

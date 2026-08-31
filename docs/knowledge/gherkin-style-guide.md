@@ -75,9 +75,8 @@ at the CLI.
 
 ## Tag scenarios for what's actually true about them, not for routing tricks
 
-`@unit` / `@integration` (spec §3) state which tier a scenario needs — use
-them only when the resource-kind default (model → unit, macro →
-integration) is wrong for a specific scenario, not as a habit. `@incremental_model`
-(spec §4.1 finding 8) states a real fact about the model under test — it
-belongs on every scenario for an incremental model, not just the ones that
-happen to need `input: this`.
+`@unit` / `@integration` state which tier a scenario needs — use them only
+when the resource-kind default (model → unit, macro → integration) is
+wrong for a specific scenario, not as a habit. `@incremental_model` states
+a real fact about the model under test — it belongs on every scenario for
+an incremental model, not just the ones that happen to need `input: this`.

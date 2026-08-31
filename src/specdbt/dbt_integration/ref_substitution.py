@@ -1,6 +1,6 @@
 """Textually substitute ref()/source() calls to known fixture names with a
 real Relation object pointing at the ephemeral schema, before a macro/model
-query is handed to dbt (spec §5.1).
+query is handed to dbt.
 
 A fixture is not a real project node, so dbt's own ref() resolution can't
 find it -- this substitution happens in specdbt's own preprocessing, before
