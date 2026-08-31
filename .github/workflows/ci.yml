@@ -20,6 +20,12 @@ jobs:
     # pre-commit hook can't, via gitleaks-action, which needs full
     # git history (fetch-depth: 0) to see past commits, not just HEAD.
     runs-on: ubuntu-latest
+    # gitleaks-action only understands push/pull_request -- release.yml
+    # calls this workflow with github.event_name still "release" (it
+    # propagates from the caller), which the action rejects outright.
+    # Code reaching a release already went through this scan on its
+    # original push/PR, so skipping here is a no-op, not a gap.
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     permissions:
       contents: read
       # gitleaks-action calls the GitHub API to list the PR's commits and

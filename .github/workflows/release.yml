@@ -1,27 +1,101 @@
 name: Release
 
-# Trusted publishing to PyPI (OIDC, no API token secret). This requires a
-# one-time setup that only happens once the repo exists on GitHub:
+# Trusted publishing to PyPI (OIDC, no API token secret). One-time setup:
 #   1. On pypi.org, add a *pending* trusted publisher for project "specdbt"
 #      naming this owner/repo, workflow filename "release.yml", and
 #      environment "pypi" -- exactly, all three are load-bearing.
 #   2. Create a GitHub Environment named "pypi" on this repo.
-#   3. Tag a commit `vX.Y.Z` and publish a GitHub Release from it (the
-#      "Prepare Release" workflow does both) -- pyproject.toml's version
-#      is derived from this tag via hatch-vcs, nothing to keep in sync.
+#
+# Two ways to release, both land here:
+#   - Actions tab -> Run workflow -> pick a bump (or type an exact
+#     version). The `tag` job below computes the next vX.Y.Z, tags it,
+#     and opens the GitHub Release itself, then this same run continues
+#     into test/build/publish -- a release created by a workflow's own
+#     GITHUB_TOKEN can't trigger other workflows (GitHub's anti-loop
+#     protection), so continuing in-run is what makes this work without
+#     a personal access token.
+#   - Publishing a GitHub Release by hand (a human token, which *does*
+#     trigger events) fires this directly via `release: published`; the
+#     `tag` job just skips itself since the tag already exists.
+#
+# Either way, pyproject.toml's version is derived from the tag via
+# hatch-vcs -- nothing to hand-edit or keep in sync.
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (ignored if 'version' is set)"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: "Exact version to release instead, e.g. 1.2.0 (optional)"
+        type: string
+        default: ""
 
 # Least-privilege default; jobs escalate only what they individually need.
 permissions:
   contents: read
 
 jobs:
+  tag:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to create the tag + GitHub Release
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # need full tag history to find the latest release
+
+      - name: Compute next version
+        id: next
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.version }}" ]; then
+            next="${{ inputs.version }}"
+          else
+            latest="$(git tag --list 'v*' --sort=-v:refname | head -1)"
+            latest="${latest#v}"
+            latest="${latest:-0.0.0}"
+            IFS='.' read -r major minor patch <<< "$latest"
+            case "${{ inputs.bump }}" in
+              major) next="$((major + 1)).0.0" ;;
+              minor) next="$major.$((minor + 1)).0" ;;
+              patch) next="$major.$minor.$((patch + 1))" ;;
+            esac
+          fi
+          if git rev-parse "v$next" >/dev/null 2>&1; then
+            echo "tag v$next already exists" >&2
+            exit 1
+          fi
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+
+      - name: Tag + publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT: ${{ steps.next.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$NEXT" -m "specdbt v$NEXT"
+          git push origin "v$NEXT"
+          gh release create "v$NEXT" \
+            --title "v$NEXT" \
+            --generate-notes \
+            --repo "${{ github.repository }}"
+
   # Reruns the same suite ci.yml runs on every push/PR -- a merged, green
   # commit doesn't guarantee the exact tagged ref is still green, and this
   # is the last gate before an irreversible PyPI upload.
   test:
+    needs: tag
+    if: always() && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     uses: ./.github/workflows/ci.yml
     secrets: inherit
     # ci.yml's gitleaks job needs pull-requests: read for its own scan --
@@ -31,16 +105,20 @@ jobs:
       pull-requests: read
 
   build:
-    needs: test
+    needs: [tag, test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       # Full history + tags -- hatch-vcs derives the package version from
-      # the tag that triggered this release; a shallow checkout can't see it.
+      # the tag. Pin explicitly to it when the `tag` job ran (workflow_dispatch)
+      # so a commit landing on main between tagging and this checkout can't
+      # slip in ahead of the release it's building; a release-event run
+      # already has the tag as github.ref.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ needs.tag.outputs.version && format('v{0}', needs.tag.outputs.version) || github.ref }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -53,11 +131,13 @@ jobs:
 
       - name: Built version matches release tag
         # Catches hatch-vcs silently falling back to a dev version (e.g.
-        # the tag wasn't actually visible to the checkout above) before
-        # it reaches PyPI -- the one thing the old hand-written version
-        # field let us check directly. sdist filename is specdbt-X.Y.Z.tar.gz.
+        # the tag wasn't actually visible to the checkout above) before it
+        # reaches PyPI -- the one thing the old hand-written version field
+        # let us check directly. sdist filename is specdbt-X.Y.Z.tar.gz.
+        env:
+          TAGGED_VERSION: ${{ needs.tag.outputs.version }}
         run: |
-          tag="${GITHUB_REF_NAME#v}"
+          tag="${TAGGED_VERSION:-${GITHUB_REF_NAME#v}}"
           built="$(basename dist/specdbt-*.tar.gz .tar.gz | sed 's/^specdbt-//')"
           if [ "$tag" != "$built" ]; then
             echo "release tag v$tag does not match built version $built"
