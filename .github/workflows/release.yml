@@ -24,6 +24,11 @@ jobs:
   test:
     uses: ./.github/workflows/ci.yml
     secrets: inherit
+    # ci.yml's gitleaks job needs pull-requests: read for its own scan --
+    # a called workflow can't exceed what the caller grants it here.
+    permissions:
+      contents: read
+      pull-requests: read
 
   build:
     needs: test
