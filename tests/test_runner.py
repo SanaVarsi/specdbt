@@ -217,7 +217,7 @@ UNIT_TAGGED_MACRO_SOURCE = """Feature: F
 
 
 def test_unit_tagged_macro_scenario_fails_clearly_with_no_macro_compiler_registered():
-    registry = CompilerRegistry()  # macro slot never registered, spec §5.4
+    registry = CompilerRegistry()  # macro slot never registered
     adapter = FakeAdapter()
     report = run_feature_text(UNIT_TAGGED_MACRO_SOURCE, adapter, registry)
     scenario = report.scenarios[0]
@@ -228,9 +228,8 @@ def test_unit_tagged_macro_scenario_fails_clearly_with_no_macro_compiler_registe
 
 
 def test_run_feature_text_without_a_registry_arg_still_works_integration_only():
-    # backward compatibility: Plan A's own existing 2-arg call sites get an
-    # implicit empty CompilerRegistry(), so every scenario resolves to the
-    # integration tier exactly as it did before this plan.
+    # Backward compatibility: omitting the registry gives an implicit empty
+    # one, so every scenario resolves to the integration tier.
     adapter = FakeAdapter()
     adapter.register("m", ExecutionResult.of(rows=[{"c": 1}]))
     report = run_feature_text(UNTAGGED_MODEL_SOURCE, adapter)

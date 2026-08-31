@@ -1,11 +1,11 @@
 """Wires parser -> fixtures -> adapter -> assertions -> reporter into one
-pipeline. Tier resolution (spec §3) picks, per scenario, between two
-entirely different control paths: the
-integration tier below executes step-by-step, threading results forward as
-each step runs; the unit tier hands the WHOLE scenario to a
-NativeTestCompiler, since dbt's own unit-test runner does the given/when/
-then work itself -- the Then step's table there is an *input* to
-compilation, read before anything executes, not a check performed after.
+pipeline. Tier resolution picks, per scenario, between two entirely
+different control paths: the integration tier executes step-by-step,
+threading results forward as each step runs; the unit tier hands the
+whole scenario to a NativeTestCompiler, since dbt's own unit-test runner
+does the given/when/then work itself -- the Then step's table there is an
+input to compilation, read before anything executes, not a check
+performed after.
 """
 
 from __future__ import annotations

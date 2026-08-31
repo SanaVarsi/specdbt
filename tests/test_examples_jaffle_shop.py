@@ -1,7 +1,6 @@
 """End-to-end: real jaffle_shop models and dbt_utils macros against a real
-DuckDB target, run through the actual CLI a user would run (spec §8, §12
-DoD). One project covers both tiers -- models default to the unit tier,
-macros to the integration tier (spec §3)."""
+DuckDB target, run through the actual CLI. Covers both tiers -- models
+default to the unit tier, macros to the integration tier."""
 
 import shutil
 import subprocess
@@ -9,20 +8,15 @@ import sys
 from pathlib import Path
 
 EXAMPLE_PROJECT = Path(__file__).parent.parent / "examples" / "jaffle_shop"
-# The venv's own `dbt` console script, resolved by sibling path rather than
-# PATH lookup -- a bare "dbt" could silently pick up an unrelated system
-# install; sys.executable's directory is where `uv sync` put this venv's own.
+# Resolved by sibling path, not PATH lookup, so this is the venv's own dbt
+# and not an unrelated system install.
 DBT_BIN = Path(sys.executable).parent / "dbt"
 
 
 def test_jaffle_shop_examples_all_pass():
-    # dbt's partial-parse cache under target/ records seed file paths
-    # relative to the cwd it was built from. A prior manual run of this
-    # same project from a different cwd (e.g. the repo root, as the
-    # README's example does) leaves a cache dbt will trust without
-    # re-resolving -- producing spurious "seed file not found" errors here.
-    # This test always runs from EXAMPLE_PROJECT, so any stale cache from a
-    # different cwd is invalid; clear it rather than risk reusing it.
+    # dbt's partial-parse cache records seed paths relative to the cwd it
+    # was built from; a stale cache from a different cwd causes spurious
+    # "seed file not found" errors, so clear it before running.
     shutil.rmtree(EXAMPLE_PROJECT / "target", ignore_errors=True)
 
     if not (EXAMPLE_PROJECT / "dbt_packages").exists():

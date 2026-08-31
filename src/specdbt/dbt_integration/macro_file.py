@@ -1,6 +1,6 @@
 """Generates and manages the temporary per-run macro file specdbt writes
 into a target dbt project to materialize Given fixtures for real, and to
-tear the ephemeral schema back down after (spec §5.1, §5.3).
+tear the ephemeral schema back down after.
 
 The macro/model call under test is never written here -- it runs directly
 via `dbt show --inline` (see adapters/dbt_adapter.py), not through this

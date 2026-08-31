@@ -1,9 +1,8 @@
-"""Shared prod-schema heuristic guard (spec §5.3) -- used by every real-
-execution path that touches a dbt target: DbtExecutionAdapter (macro/model
-integration tier, ephemeral) and ModelUnitTestCompiler (model unit tier --
-its prebuild step, spec §4.1 finding 6, writes real tables into the
-project's actually-configured schema, not an ephemeral one, so it needs the
-same guard).
+"""Shared prod-schema heuristic guard -- used by every real-execution path
+that touches a dbt target: DbtExecutionAdapter (macro/model integration
+tier, ephemeral) and ModelUnitTestCompiler (model unit tier -- its
+prebuild step writes real tables into the project's actually-configured
+schema, not an ephemeral one, so it needs the same guard).
 """
 
 from __future__ import annotations
