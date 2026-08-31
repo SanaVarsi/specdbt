@@ -6,9 +6,9 @@ name: Release
 #      naming this owner/repo, workflow filename "release.yml", and
 #      environment "pypi" -- exactly, all three are load-bearing.
 #   2. Create a GitHub Environment named "pypi" on this repo.
-#   3. Tag a commit `vX.Y.Z` matching pyproject.toml's `version`, then
-#      publish a GitHub Release from that tag (or push the tag, if using
-#      the tag-push trigger below).
+#   3. Tag a commit `vX.Y.Z` and publish a GitHub Release from it (the
+#      "Prepare Release" workflow does both) -- pyproject.toml's version
+#      is derived from this tag via hatch-vcs, nothing to keep in sync.
 on:
   release:
     types: [published]
@@ -36,16 +36,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Full history + tags -- hatch-vcs derives the package version from
+      # the tag that triggered this release; a shallow checkout can't see it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Tag matches project version
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          ver="$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
-          if [ "$tag" != "$ver" ]; then
-            echo "release tag v$tag does not match pyproject.toml version $ver"
-            exit 1
-          fi
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -55,6 +50,19 @@ jobs:
 
       - name: Build sdist + wheel
         run: uv build
+
+      - name: Built version matches release tag
+        # Catches hatch-vcs silently falling back to a dev version (e.g.
+        # the tag wasn't actually visible to the checkout above) before
+        # it reaches PyPI -- the one thing the old hand-written version
+        # field let us check directly. sdist filename is specdbt-X.Y.Z.tar.gz.
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          built="$(basename dist/specdbt-*.tar.gz .tar.gz | sed 's/^specdbt-//')"
+          if [ "$tag" != "$built" ]; then
+            echo "release tag v$tag does not match built version $built"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

@@ -1986,7 +1986,6 @@ wheels = [
 
 [[package]]
 name = "specdbt"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -2030,7 +2029,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "sqlparse", specifier = ">=0.6.0" },
 ]
-provides-extras = ["postgres", "databricks", "snowflake"]
+provides-extras = ["databricks", "postgres", "snowflake"]
 
 [package.metadata.requires-dev]
 dev = [

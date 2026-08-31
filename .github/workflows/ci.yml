@@ -51,7 +51,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
+      # Full history + tags -- hatch-vcs derives the package version from
+      # the nearest git tag, which a shallow checkout can't see.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
