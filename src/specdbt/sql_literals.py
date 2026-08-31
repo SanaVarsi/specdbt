@@ -1,5 +1,5 @@
 """Cross-database SQL literal rendering for fixture rows executed against a
-real dbt target (spec §5.1).
+real dbt target.
 
 Numbers/booleans/NULL are rendered as raw ANSI SQL literals (portable across
 DuckDB/Snowflake/Databricks). Strings are rendered as a Jinja call using the

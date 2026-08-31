@@ -1,6 +1,6 @@
 """Real execution against whatever dbt target a project's profile points at,
 via dbtRunner -- the only concrete ExecutionAdapter that computes real
-results instead of returning canned ones (spec §3, §5)."""
+results instead of returning canned ones."""
 
 from __future__ import annotations
 
@@ -32,12 +32,12 @@ class DbtInvocationError(RuntimeError):
 
 
 class ModelIntegrationTierNotImplementedError(NotImplementedError):
-    """Raised by run_model -- see spec §10. The macro-file substitution
-    mechanism only works because a macro call's ref()/source() arguments
-    are text specdbt's own call site controls. A model's ref()s are inside
-    its own SQL file, which this mechanism never touches -- running it for
-    real would use whatever real state those refs already resolve to, not
-    the scenario's fixtures, silently producing wrong results."""
+    """Raised by run_model. The macro-file substitution mechanism only
+    works because a macro call's ref()/source() arguments are text
+    specdbt's own call site controls. A model's ref()s are inside its own
+    SQL file, which this mechanism never touches -- running it for real
+    would use whatever real state those refs already resolve to, not the
+    scenario's fixtures, silently producing wrong results."""
 
 
 class DbtExecutionAdapter(ExecutionAdapter):
@@ -59,9 +59,9 @@ class DbtExecutionAdapter(ExecutionAdapter):
 
     def run_model(self, model_name: str, fixtures: list[Fixture]) -> ExecutionResult:
         raise ModelIntegrationTierNotImplementedError(
-            f"DbtExecutionAdapter.run_model({model_name!r}) is an extension "
-            "point, not implemented -- see spec §2/§3/§10. Model testing "
-            "today goes through FakeAdapter, or (a future plan) the unit tier."
+            f"DbtExecutionAdapter.run_model({model_name!r}) is not "
+            "implemented -- model integration-tier testing goes through "
+            "FakeAdapter or the unit tier instead."
         )
 
     def run_macro(self, macro_call: str, fixtures: list[Fixture]) -> ExecutionResult:

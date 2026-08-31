@@ -6,9 +6,8 @@ import re
 
 Scalar = bool | int | float | str
 
-# Deliberately stricter than int()/float(): no leading zeros (so identifier-shaped
-# values like "007" stay strings, not 7) and no scientific notation (so "1e5"
-# isn't silently read as a number).
+# Stricter than int()/float(): no leading zeros ("007" stays a string) and
+# no scientific notation ("1e5" stays a string).
 _INT_RE = re.compile(r"^-?(0|[1-9]\d*)$")
 _FLOAT_RE = re.compile(r"^-?(0|[1-9]\d*)\.\d+$")
 

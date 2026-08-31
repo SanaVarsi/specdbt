@@ -1,7 +1,7 @@
 """Renders a compiled unit test as a dbt-native `unit_tests:` YAML entry,
 and writes/deletes the generated file specdbt writes into the target
-project (spec §4, §4.1) -- mirrors dbt_integration/macro_file.py's
-render/write/delete shape for the macro tier.
+project -- mirrors dbt_integration/macro_file.py's render/write/delete
+shape for the macro tier.
 """
 
 from __future__ import annotations
@@ -25,11 +25,11 @@ def render_unit_test_yaml(
 ) -> str:
     """`given` is a list of {"input": <"ref('x')" | "source('a','b')" |
     "this">, "rows": list[dict]} dicts, already compiled by
-    native_unit_tests.model_compiler.compile_scenario (Task 6).
+    native_unit_tests.model_compiler.compile_scenario.
     `is_incremental`: None omits the overrides block entirely (models that
     don't call is_incremental()); True/False emits an explicit
-    overrides: macros: is_incremental: <bool> (spec §4.1 finding 8 -- dbt
-    requires this be explicit for any unit test on a model that does)."""
+    overrides: macros: is_incremental: <bool> (dbt requires this be
+    explicit for any unit test on a model that does)."""
     entry: dict = {
         "name": unit_test_name(run_id),
         "model": model_name,

@@ -108,10 +108,8 @@ def test_incremental_model_tag_without_already_in_step_sets_is_incremental_false
 
 
 def test_no_incremental_model_tag_leaves_is_incremental_none_even_with_already_in_step():
-    # @incremental_model is what turns "already in" wording into an actual
-    # overrides block -- without the tag, is_incremental stays unset even if
-    # an "already in" step is (unusually) present, matching spec §4.1
-    # finding 8's exception being opt-in, not inferred from step wording alone.
+    # @incremental_model is what turns "already in" wording into an overrides
+    # block -- opt-in, not inferred from step wording alone.
     source_without_tag = INCREMENTAL_SOURCE.replace(" @incremental_model", "")
     scenario = parse_feature_text(source_without_tag).scenarios[0]
     compiled = compile_scenario(scenario)
@@ -133,9 +131,8 @@ MISMATCHED_THEN_SOURCE = """Feature: F
 
 
 def test_then_step_naming_a_different_model_than_when_raises_unit_test_compile_error():
-    # final review finding 2: the unit tier must not silently take the
-    # model under test from When alone -- a Then naming a different model
-    # is a real error, matching the integration tier's equivalent failure.
+    # The unit tier must not silently take the model under test from When
+    # alone -- a Then naming a different model is a real error.
     scenario = parse_feature_text(MISMATCHED_THEN_SOURCE).scenarios[0]
     with pytest.raises(UnitTestCompileError) as exc_info:
         compile_scenario(scenario)
@@ -159,10 +156,8 @@ MISMATCHED_THEN_BEFORE_WHEN_SOURCE = """Feature: F
 
 
 def test_mismatched_then_and_when_raises_regardless_of_step_order():
-    # Gherkin keyword type comes from the keyword itself, not physical
-    # position -- the mismatch check must not be skippable by writing Then
-    # before When (the comparison happens post-loop, after both are
-    # guaranteed captured, not inline while processing the Outcome step).
+    # Keyword type comes from the keyword itself, not physical position --
+    # the mismatch check must not be skippable by writing Then before When.
     scenario = parse_feature_text(MISMATCHED_THEN_BEFORE_WHEN_SOURCE).scenarios[0]
     with pytest.raises(UnitTestCompileError) as exc_info:
         compile_scenario(scenario)

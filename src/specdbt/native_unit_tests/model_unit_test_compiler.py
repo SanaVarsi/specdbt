@@ -1,8 +1,8 @@
 """Real unit-tier orchestration for models: compiles a Scenario to a
 generated unit_tests: YAML file, runs it for real via dbtRunner, and
-translates dbt's own pass/fail + diff into specdbt's StepResult format
-(spec §4, §4.1). The only NativeTestCompiler this plan registers -- the
-macro slot stays unregistered (spec §5.4, dbt-core#10547).
+translates dbt's own pass/fail + diff into specdbt's StepResult format.
+The only NativeTestCompiler registered -- the macro slot stays
+unregistered (dbt-core#10547).
 """
 
 from __future__ import annotations
@@ -32,9 +32,9 @@ _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 class DbtInvocationError(RuntimeError):
     """Raised when a dbtRunner.invoke() call itself fails to run -- a
     seed/run prebuild step failing outright, or a test invocation whose
-    result.result is None (a genuine parse/compile error, spec §4.1
-    finding 2) -- never for a unit test that ran and legitimately failed;
-    that case is translated into a failed StepResult instead."""
+    result.result is None (a genuine parse/compile error) -- never for a
+    unit test that ran and legitimately failed; that case is translated
+    into a failed StepResult instead."""
 
 
 class ModelUnitTestCompiler(NativeTestCompiler):
@@ -55,10 +55,8 @@ class ModelUnitTestCompiler(NativeTestCompiler):
 
     def run(self, scenario: Scenario) -> list[StepResult]:
         compiled = compile_scenario(scenario)
-        # compile_scenario() guarantees a When and a Then step for any
-        # scenario it accepts -- the dataclass types them as optional
-        # because CompiledUnitTest is built incrementally, but by the time
-        # it's returned both are always set.
+        # Typed optional only because CompiledUnitTest builds incrementally;
+        # compile_scenario() guarantees both are set by the time it returns.
         assert compiled.when_step is not None
         assert compiled.then_step is not None
         self._ensure_project_prebuilt()
@@ -104,8 +102,7 @@ class ModelUnitTestCompiler(NativeTestCompiler):
         """One dbt seed + dbt run for the whole project, once per compiler
         instance -- not per scenario. Necessary and sufficient for every
         given: input: ref()/source()/this target to be a real,
-        introspectable relation before any unit test runs (spec §4.1
-        findings 6, 8)."""
+        introspectable relation before any unit test runs."""
         if self._prebuilt:
             return
         self._invoke_must_succeed(["seed"])
@@ -119,7 +116,7 @@ class ModelUnitTestCompiler(NativeTestCompiler):
     def _model_paths_dir(self) -> str:
         """dbt only parses YAML placed under model-paths (default
         ["models"]) -- the generated unit-test YAML must land there or dbt
-        silently never sees it (spec §4.1, final review finding 1)."""
+        silently never sees it."""
         project_yml = self._project_dir / "dbt_project.yml"
         config = _yaml.safe_load(project_yml.read_text())
         model_paths = config.get("model-paths") or ["models"]
@@ -135,10 +132,10 @@ class ModelUnitTestCompiler(NativeTestCompiler):
         """Best-effort extraction of node-level failure info (each failing
         seed/run node's name + message) for a more informative diagnostic
         than the bare result.exception, which is None whenever the
-        invocation itself ran fine but a node inside it failed (final
-        review finding 3). Falls back to result.exception for genuine
-        invocation-level failures, where result.result is None. Defensive:
-        never lets a shape surprise here raise past this method."""
+        invocation itself ran fine but a node inside it failed. Falls back
+        to result.exception for genuine invocation-level failures, where
+        result.result is None. Defensive: never lets a shape surprise here
+        raise past this method."""
         if result.result is not None:
             try:
                 details = []
@@ -158,9 +155,9 @@ class ModelUnitTestCompiler(NativeTestCompiler):
 
     def _invoke_test(self, args: list[str]):
         """Unlike _invoke_must_succeed, result.success == False is the
-        NORMAL outcome of a legitimately failing unit test (spec §4.1
-        finding 2) -- only result.result is None (dbt couldn't even run: a
-        parse/compile error) is a real invocation failure here."""
+        normal outcome of a legitimately failing unit test -- only
+        result.result is None (dbt couldn't even run: a parse/compile
+        error) is a real invocation failure here."""
         result = self._raw_invoke(args)
         if result.result is None:
             raise DbtInvocationError(f"dbt {args[0]} failed to run: {result.exception}")
