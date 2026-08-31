@@ -1,0 +1,29 @@
+name: Bug report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What you expected instead, and what actually happened.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A minimal `.feature` file / model / command that reproduces it.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: specdbt version
+      description: Output of `specdbt --version` (or `pip show specdbt`).
+    validations:
+      required: true
+  - type: input
+    id: adapter
+    attributes:
+      label: dbt adapter
+      description: e.g. duckdb, postgres, databricks, snowflake
